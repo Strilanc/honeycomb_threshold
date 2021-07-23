@@ -1,0 +1,5 @@
+matplotlib
+networkx
+numpy
+pymatching
+stim

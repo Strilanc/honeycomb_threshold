@@ -1,0 +1,5 @@
+.idea/*
+.venv/*
+**/*.csv
+**/__pycache__/**
+internal_decoder.binary
