@@ -30,9 +30,10 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         circuit.append_operation("QUBIT_COORDS", [i], [q.real, q.imag])
 
     # Initialize data.
+    idle = lay.qubit_indices_except(lay.data_qubit_indices)
     circuit.append_operation("R", lay.data_qubit_indices)
     circuit.append_operation("X_ERROR", lay.data_qubit_indices, lay.noise)  # Reset error.
-    circuit.append_operation("DEPOLARIZE1", lay.qubit_indices_except(lay.data_qubit_indices), lay.noise)  # Idle error.
+    circuit.append_operation("DEPOLARIZE1", idle, lay.noise)  # Idle error.
     circuit.append_operation("TICK", [])
 
     # Create dummy stabilizer records to compare against during initial rounds.
@@ -64,10 +65,11 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
 
     # Prepare data qubit basis for fault tolerant data measurement.
     obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
-    append_basis_switch_vs_z(circuit, lay.data_qubit_indices, obs_basis)
-    circuit.append_operation("DEPOLARIZE1", lay.data_qubit_indices, lay.noise)  # Clifford error.
-    circuit.append_operation("DEPOLARIZE1", lay.qubit_indices_except(lay.data_qubit_indices), lay.noise)  # Idle error.
-    circuit.append_operation("TICK", [])
+    if obs_basis != lay.sub_round_edge_basis(sub_rounds - 1):
+        circuit.append_operation("C_XYZ", lay.data_qubit_indices)
+        circuit.append_operation("DEPOLARIZE1", lay.data_qubit_indices, lay.noise)  # Clifford error.
+        circuit.append_operation("DEPOLARIZE1", lay.qubit_indices_except(lay.data_qubit_indices), lay.noise)  # Idle error.
+        circuit.append_operation("TICK", [])
 
     # Perform the fault tolerant data measurement.
     circuit.append_operation("X_ERROR", lay.data_qubit_indices, lay.noise)  # Measurement error.
@@ -138,7 +140,7 @@ def _generate_honeycomb_sub_round(lay: HoneycombLayout,
     # Begin measurements by reseting measurement qubits and switching data qubit basis.
     idle = lay.qubit_indices_except([*measure_targets, *lay.data_qubit_indices])
     circuit.append_operation("R", measure_targets)
-    append_basis_switch_vs_z(circuit, lay.data_qubit_indices, lay.sub_round_edge_basis(sub_round))
+    circuit.append_operation("C_XYZ", lay.data_qubit_indices)
     circuit.append_operation("X_ERROR", measure_targets, lay.noise)  # Reset error.
     circuit.append_operation("DEPOLARIZE1", lay.data_qubit_indices, lay.noise)  # Clifford error.
     circuit.append_operation("DEPOLARIZE1", idle, lay.noise)  # Idle error.
@@ -159,12 +161,10 @@ def _generate_honeycomb_sub_round(lay: HoneycombLayout,
     circuit.append_operation("TICK", [])
 
     # Finish measurements and restore data qubit basis.
-    idle = lay.qubit_indices_except([*measure_targets, *lay.data_qubit_indices])
+    idle = lay.qubit_indices_except(measure_targets)
     circuit.append_operation("X_ERROR", measure_targets, lay.noise)  # Measure error.
-    circuit.append_operation("DEPOLARIZE1", lay.data_qubit_indices, lay.noise)  # Clifford error.
     circuit.append_operation("DEPOLARIZE1", idle, lay.noise)  # Idle error.
     circuit.append_operation("M", measure_targets)
-    append_basis_switch_vs_z(circuit, lay.data_qubit_indices, lay.sub_round_edge_basis(sub_round))
 
     # Multiply edge measurements along the observable's path into the observable.
     circuit.append_operation(

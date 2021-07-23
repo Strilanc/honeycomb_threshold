@@ -5,7 +5,7 @@ from the paper ["Dynamically Generated Logical Qubits"](https://arxiv.org/abs/21
 
 The code in this repository uses [Stim](https://github.com/quantumlib/Stim) for defining the code
 as a circuit, and for simulating noisy runs of that circuit.
-It then decodes those simulated runs using [PyMatching](https://github.com/oscarhiggott/PyMatching/issues)
+It then decodes those simulated runs using [PyMatching](https://github.com/oscarhiggott/PyMatching)
 (or using an internal decoding tool not included in the repository).
 Finally, it uses the collected data to produce plots like this one:
 
