@@ -118,13 +118,15 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
                 r3 + ab + _sub_round_measurements_and_detectors(lay, mtrack, kx),
             ]
 
-        # moments += [fuse_moments(lay=lay, moments=fx(0) + fx(1) + fx(2)) * iterations]
-        for sub_round in range(min(6, sub_rounds - 2)):
-            moments += fx(sub_round)
-        iterations = max(0, len(range(6, sub_rounds - 2)) // 3)
+        next_sub_round = 0
+        while next_sub_round < 4 and next_sub_round < sub_rounds - 2:
+            moments += fx(next_sub_round)
+            next_sub_round += 1
+        iterations = max(0, sub_rounds - next_sub_round - 2) // 3
         if iterations > 0:
-            moments += (fx(0) + fx(1) + fx(2)) * iterations
-        for sub_round in range(6 + iterations * 3, sub_rounds - 2):
+            moments += (fx(1) + fx(2) + fx(0)) * iterations
+            next_sub_round += iterations * 3
+        for sub_round in range(next_sub_round, sub_rounds - 2):
             moments += fx(sub_round)
 
         # End the pipeline.
