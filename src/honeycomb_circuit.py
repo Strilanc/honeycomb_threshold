@@ -9,39 +9,53 @@ from measure_tracker import MeasurementTracker, Prev
 TWO_QUBIT_OPS = {"CX"}
 ONE_QUBIT_OPS = {"C_XYZ"}
 RESET_OPS = {"R", "MR"}
-MEASURE_OPS = {"R", "MR"}
+MEASURE_OPS = {"M", "MR"}
+ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS"}
 STABILIZER_OPS = RESET_OPS | MEASURE_OPS | ONE_QUBIT_OPS | TWO_QUBIT_OPS
 
 def fuse_moments(*, lay: HoneycombLayout, moments: List[stim.Circuit]) -> stim.Circuit:
     result = stim.Circuit()
-    idle = set(lay.q2i.values())
     for k in range(len(moments)):
         if k:
             result.append_operation("TICK", [])
-        moment = moments[k]
+
+        moment_circuit = moments[k]
+        if len(moment_circuit) == 1 and isinstance(moment_circuit[0], stim.CircuitRepeatBlock):
+            # HACK: Repeated blocks should already be annotated.
+            result += moment_circuit
+            continue
+
+        idle = set(lay.q2i.values())
         pre = stim.Circuit()
         post = stim.Circuit()
-        for op in moment:
-            if isinstance(op, stim.CircuitRepeatBlock):
-                result += op.body_copy() * op.repeat_count
-                continue
+        for op in moment_circuit:
             if not isinstance(op, stim.CircuitInstruction):
                 raise NotImplementedError()
             targets = []
+            handled = False
             if op.name in STABILIZER_OPS:
                 targets = [t.value for t in op.targets_copy()]
                 for t in targets:
-                    idle.discard(t)
+                    idle.remove(t)
+                handled = True
             if op.name in RESET_OPS:
                 post.append_operation("X_ERROR", targets, lay.noise)
+                handled = True
             if op.name in MEASURE_OPS:
                 pre.append_operation("X_ERROR", targets, lay.noise)
+                handled = True
             if op.name in ONE_QUBIT_OPS:
                 post.append_operation("DEPOLARIZE1", targets, lay.noise)
+                handled = True
             if op.name in TWO_QUBIT_OPS:
                 post.append_operation("DEPOLARIZE2", targets, lay.noise)
+                handled = True
+            if op.name in ANNOTATION_OPS:
+                handled = True
+            if not handled:
+                raise NotImplementedError(op.name)
         result += pre
-        result += moment
+        result += moment_circuit
         result += post
         if idle:
             result.append_operation("DEPOLARIZE1", sorted(idle), lay.noise)
@@ -123,8 +137,11 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
             moments += fx(next_sub_round)
             next_sub_round += 1
         iterations = max(0, sub_rounds - next_sub_round - 2) // 3
-        if iterations > 0:
-            moments += (fx(1) + fx(2) + fx(0)) * iterations
+        if iterations > 1:
+            ls = fx(1) + fx(2) + fx(0)
+            loop_body = fuse_moments(lay=lay, moments=ls)
+            loop_body.append_operation("TICK", [])
+            moments += [loop_body * iterations]
             next_sub_round += iterations * 3
         for sub_round in range(next_sub_round, sub_rounds - 2):
             moments += fx(sub_round)
