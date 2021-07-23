@@ -15,14 +15,17 @@ STABILIZER_OPS = RESET_OPS | MEASURE_OPS | ONE_QUBIT_OPS | TWO_QUBIT_OPS
 
 def fuse_moments(*, lay: HoneycombLayout, moments: List[stim.Circuit]) -> stim.Circuit:
     result = stim.Circuit()
-    for k in range(len(moments)):
-        if k:
+    skip_tick = True
+    for moment_circuit in moments:
+        if skip_tick:
+            skip_tick = False
+        else:
             result.append_operation("TICK", [])
 
-        moment_circuit = moments[k]
         if len(moment_circuit) == 1 and isinstance(moment_circuit[0], stim.CircuitRepeatBlock):
             # HACK: Repeated blocks should already be annotated.
             result += moment_circuit
+            skip_tick = True
             continue
 
         idle = set(lay.q2i.values())
@@ -79,13 +82,6 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
     )
     mtrack = MeasurementTracker()
 
-    a = stim.Circuit()
-    b = stim.Circuit()
-    ab = stim.Circuit()
-    a.append_operation("C_XYZ", lay.data_qubit_indices_1st)
-    b.append_operation("C_XYZ", lay.data_qubit_indices_2nd)
-    ab.append_operation("C_XYZ", lay.data_qubit_indices)
-
     # Annotate the locations of qubits used by the circuit.
     moments = [stim.Circuit()]
     for q, i in lay.q2i.items():
@@ -110,49 +106,43 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
     elif sub_rounds == 1:
         # For a single sub round there's no time to pipeline.
         moments += [
-            _sub_round_resets(lay, 0) + ab,
+            _sub_round_resets(lay, 0) + _cycle_data(lay, True, True),
             *_sub_round_2q_ops(lay, 0),
             _sub_round_measurements_and_detectors(lay, mtrack, 0),
         ]
     else:
         # Get the pipeline started.
         moments += [
-            _sub_round_resets(lay, 0) + a,
+            _sub_round_resets(lay, 0) + _cycle_data(lay, True, False),
             _sub_round_2q_ops(lay, 0)[0],
-            _sub_round_resets(lay, 1) + ab,
+            _sub_round_resets(lay, 1) + _cycle_data(lay, True, True),
         ]
 
         # Run the sub rounds in a pipelined fashion.
-        def fx(kx):
-            _, b1 = _sub_round_2q_ops(lay, kx)
-            a2, _ = _sub_round_2q_ops(lay, kx + 1)
-            r3 = _sub_round_resets(lay, kx + 2)
-            return [
-                a2 + b1,
-                r3 + ab + _sub_round_measurements_and_detectors(lay, mtrack, kx),
-            ]
-
         next_sub_round = 0
         while next_sub_round < 4 and next_sub_round < sub_rounds - 2:
-            moments += fx(next_sub_round)
+            moments += _pipeline_step(lay, next_sub_round, mtrack)
             next_sub_round += 1
         iterations = max(0, sub_rounds - next_sub_round - 2) // 3
         if iterations > 1:
-            ls = fx(1) + fx(2) + fx(0)
-            loop_body = fuse_moments(lay=lay, moments=ls)
+            loop_body = fuse_moments(lay=lay, moments=[
+                *_pipeline_step(lay, 1, mtrack),
+                *_pipeline_step(lay, 2, mtrack),
+                *_pipeline_step(lay, 0, mtrack),
+            ])
             loop_body.append_operation("TICK", [])
             moments += [loop_body * iterations]
             next_sub_round += iterations * 3
         for sub_round in range(next_sub_round, sub_rounds - 2):
-            moments += fx(sub_round)
+            moments += _pipeline_step(lay, sub_round, mtrack)
 
         # End the pipeline.
-        _, b2 = _sub_round_2q_ops(lay, sub_rounds + 1)
-        a3, b3 = _sub_round_2q_ops(lay, sub_rounds + 2)
+        _, b2 = _sub_round_2q_ops(lay, sub_rounds - 2)
+        a3, b3 = _sub_round_2q_ops(lay, sub_rounds - 1)
         moments += [
             a3 + b2,
             _sub_round_measurements_and_detectors(lay, mtrack, sub_rounds - 2),
-            b,
+            _cycle_data(lay, False, True),
             b3,
             _sub_round_measurements_and_detectors(lay, mtrack, sub_rounds - 1)
         ]
@@ -160,11 +150,10 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
     # Prepare data qubit basis for fault tolerant data measurement.
     obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
     if obs_basis != lay.sub_round_edge_basis(sub_rounds - 1):
-        moments.append(stim.Circuit())
         moments[-1].append_operation("C_XYZ", lay.data_qubit_indices)
+        moments.append(stim.Circuit())
 
     # Perform the fault tolerant data measurement.
-    moments.append(stim.Circuit())
     moments[-1].append_operation("M", lay.data_qubit_indices)
     mtrack.add_measurements(*lay.data_qubit_coords)
 
@@ -206,6 +195,28 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         0)
 
     return fuse_moments(lay=lay, moments=moments)
+
+
+def _pipeline_step(lay: HoneycombLayout, sub_round: int, mtrack: MeasurementTracker):
+    _, b1 = _sub_round_2q_ops(lay, sub_round)
+    a2, _ = _sub_round_2q_ops(lay, sub_round + 1)
+    r3 = _sub_round_resets(lay, sub_round + 2)
+    c = _cycle_data(lay, True, True)
+    return [
+        a2 + b1,
+        r3 + c + _sub_round_measurements_and_detectors(lay, mtrack, sub_round),
+    ]
+
+
+def _cycle_data(lay: HoneycombLayout, first: bool, second: bool) -> stim.Circuit:
+    result = stim.Circuit()
+    if first and second:
+        result.append_operation("C_XYZ", lay.data_qubit_indices)
+    elif first:
+        result.append_operation("C_XYZ", lay.data_qubit_indices_1st)
+    elif second:
+        result.append_operation("C_XYZ", lay.data_qubit_indices_2nd)
+    return result
 
 
 def _sub_round_2q_ops(lay: HoneycombLayout, sub_round: int) -> Tuple[stim.Circuit, stim.Circuit]:
