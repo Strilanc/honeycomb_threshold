@@ -101,51 +101,7 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         mtrack.add_dummies(*[('1/2', h) for h in lay.round_hex_centers(sub_round)], obstacle=sub_round != 1)
 
     # Use a loop to advance the steady state as close as possible to the end.
-    if sub_rounds == 0:
-        raise NotImplementedError("Zero rounds.")
-    elif sub_rounds == 1:
-        # For a single sub round there's no time to pipeline.
-        moments += [
-            _sub_round_resets(lay, 0) + _cycle_data(lay, True, True),
-            *_sub_round_2q_ops(lay, 0),
-            _sub_round_measurements_and_detectors(lay, mtrack, 0),
-        ]
-    else:
-        # Get the pipeline started.
-        moments += [
-            _sub_round_resets(lay, 0) + _cycle_data(lay, True, False),
-            _sub_round_2q_ops(lay, 0)[0],
-            _sub_round_resets(lay, 1) + _cycle_data(lay, True, True),
-        ]
-
-        # Run the sub rounds in a pipelined fashion.
-        next_sub_round = 0
-        while next_sub_round < 4 and next_sub_round < sub_rounds - 2:
-            moments += _pipeline_step(lay, next_sub_round, mtrack)
-            next_sub_round += 1
-        iterations = max(0, sub_rounds - next_sub_round - 2) // 3
-        if iterations > 1:
-            loop_body = fuse_moments(lay=lay, moments=[
-                *_pipeline_step(lay, 1, mtrack),
-                *_pipeline_step(lay, 2, mtrack),
-                *_pipeline_step(lay, 0, mtrack),
-            ])
-            loop_body.append_operation("TICK", [])
-            moments += [loop_body * iterations]
-            next_sub_round += iterations * 3
-        for sub_round in range(next_sub_round, sub_rounds - 2):
-            moments += _pipeline_step(lay, sub_round, mtrack)
-
-        # End the pipeline.
-        _, b2 = _sub_round_2q_ops(lay, sub_rounds - 2)
-        a3, b3 = _sub_round_2q_ops(lay, sub_rounds - 1)
-        moments += [
-            a3 + b2,
-            _sub_round_measurements_and_detectors(lay, mtrack, sub_rounds - 2),
-            _cycle_data(lay, False, True),
-            b3,
-            _sub_round_measurements_and_detectors(lay, mtrack, sub_rounds - 1)
-        ]
+    moments += generate_rounds_six_cycle(lay, mtrack)
 
     # Prepare data qubit basis for fault tolerant data measurement.
     obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
@@ -195,6 +151,57 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         0)
 
     return fuse_moments(lay=lay, moments=moments)
+
+
+def generate_rounds_six_cycle(lay: HoneycombLayout, mtrack: MeasurementTracker) -> List[stim.Circuit]:
+    n = lay.sub_rounds
+    moments = []
+    if n == 0:
+        raise NotImplementedError("Zero rounds.")
+    elif n == 1:
+        # For a single sub round there's no time to pipeline.
+        moments += [
+            _sub_round_resets(lay, 0) + _cycle_data(lay, True, True),
+            *_sub_round_2q_ops(lay, 0),
+            _sub_round_measurements_and_detectors(lay, mtrack, 0),
+        ]
+    else:
+        # Get the pipeline started.
+        moments += [
+            _sub_round_resets(lay, 0) + _cycle_data(lay, True, False),
+            _sub_round_2q_ops(lay, 0)[0],
+            _sub_round_resets(lay, 1) + _cycle_data(lay, True, True),
+        ]
+
+        # Run the sub rounds in a pipelined fashion.
+        next_sub_round = 0
+        while next_sub_round < 4 and next_sub_round < n - 2:
+            moments += _pipeline_step(lay, next_sub_round, mtrack)
+            next_sub_round += 1
+        iterations = max(0, n - next_sub_round - 2) // 3
+        if iterations > 1:
+            loop_body = fuse_moments(lay=lay, moments=[
+                *_pipeline_step(lay, 1, mtrack),
+                *_pipeline_step(lay, 2, mtrack),
+                *_pipeline_step(lay, 0, mtrack),
+            ])
+            loop_body.append_operation("TICK", [])
+            moments += [loop_body * iterations]
+            next_sub_round += iterations * 3
+        for sub_round in range(next_sub_round, n - 2):
+            moments += _pipeline_step(lay, sub_round, mtrack)
+
+        # End the pipeline.
+        _, b2 = _sub_round_2q_ops(lay, n - 2)
+        a3, b3 = _sub_round_2q_ops(lay, n - 1)
+        moments += [
+            a3 + b2,
+            _sub_round_measurements_and_detectors(lay, mtrack, n - 2),
+            _cycle_data(lay, False, True),
+            b3,
+            _sub_round_measurements_and_detectors(lay, mtrack, n - 1)
+        ]
+    return moments
 
 
 def _pipeline_step(lay: HoneycombLayout, sub_round: int, mtrack: MeasurementTracker):
