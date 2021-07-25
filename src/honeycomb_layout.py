@@ -72,7 +72,7 @@ SECOND_EDGES_AROUND_HEX: List[Tuple[complex, complex]] = [
 
 
 class HoneycombLayout:
-    def __init__(self, tile_diam: int, sub_rounds: int, noise: float, style: str = "3"):
+    def __init__(self, tile_diam: int, sub_rounds: int, noise: float, style: str = "3step_demolition"):
         self.tile_diam = tile_diam
         self.sub_rounds = sub_rounds
         self.noise = noise
@@ -179,8 +179,7 @@ class HoneycombLayout:
     def q2i(self) -> Dict[complex, int]:
         return {
             q: i
-            for i, q in enumerate(sorted_complex(
-                self.data_qubit_coords + self.measure_qubit_coords))
+            for i, q in enumerate(sorted_complex(self.data_qubit_coords) + sorted_complex(self.measure_qubit_coords))
         }
 
     def qubit_indices_except(self, indices: Iterable[int]) -> List[int]:

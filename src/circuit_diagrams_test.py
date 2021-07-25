@@ -19,7 +19,7 @@ def test_plot_six_cycle():
         noise=0.001,
         tile_diam=1,
         sub_rounds=13,
-        style="6",
+        style="6step_cnot",
     ), only_repeat_block=True), r"""
                                                                                                             ~
                                                                                                             |
@@ -66,7 +66,7 @@ def test_plot_three_cycle():
         noise=0.001,
         tile_diam=1,
         sub_rounds=20,
-        style="3",
+        style="3step_demolition",
     ), only_repeat_block=True), r"""
                                                 ~
                          ~                      |

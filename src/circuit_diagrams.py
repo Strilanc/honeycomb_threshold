@@ -129,19 +129,21 @@ def plot_circuit(c: stim.Circuit, only_repeat_block: bool):
                 i2q[q] = p
                 assert p not in seen_coords
                 seen_coords.add(p)
-        elif op.name in ["M", "R", "H", "H_YZ", "C_XYZ", "MR"]:
+        elif op.name in ["M", "R", "H", "H_YZ", "C_XYZ", "MR", "MY", "MX"]:
             s = op.name
             if op.name == "H_YZ":
                 s = "G"
             if op.name == "C_XYZ":
                 s = "C"
+            if op.name == "MX" or op.name == "MY":
+                s = "m"
             if op.name == "MR":
                 s = "D"
             for t in op.targets_copy():
                 q = i2q[t.value]
                 assert q not in cur_level
                 cur_level[q] = s
-        elif op.name in ["CX", "XCX", "YCX"]:
+        elif op.name in ["CX", "XCX", "YCX", "YCX", "YCZ", "XCY"]:
             qs = [t.value for t in op.targets_copy()]
             for k in range(0, len(qs), 2):
                 q1 = i2q[qs[k]]
@@ -149,7 +151,7 @@ def plot_circuit(c: stim.Circuit, only_repeat_block: bool):
                 assert q1 not in cur_level
                 cur_level[q1] = "@" if len(op.name) == 2 else op.name[0]
                 assert q2 not in cur_level
-                cur_level[q2] = "X"
+                cur_level[q2] = op.name[-1]
                 cur_connectors.append((q1, q2))
         elif op.name == "TICK":
             levels.append(cur_level)

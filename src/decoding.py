@@ -1,4 +1,5 @@
 import pathlib
+import sys
 from typing import Callable, List, Optional
 import math
 import subprocess
@@ -111,7 +112,19 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
                    f"-out '{out_file}'")
         if USE_CORRELATIONS:
             command += " -cheap_corr -edge_corr -node_corr"
-        subprocess.check_output(command, shell=True)
+        try:
+            subprocess.check_output(command, shell=True)
+        except:
+            with open(dem_file) as f:
+                with open("repro.dem", "w") as f2:
+                    print(f.read(), file=f2)
+            with open(dets_file) as f:
+                with open("repro.dets", "w") as f2:
+                    print(f.read(), file=f2)
+            with open("repro.stim", "w") as f2:
+                print(circuit, file=f2)
+            print(f"Wrote case to `repro.dem`, `repro.dets`, and `repro.stim`.\nCommand line is: {command}", file=sys.stderr)
+            raise
 
         predictions = np.zeros(shape=(num_shots, num_obs), dtype=np.bool8)
         with open(out_file, "r") as f:
