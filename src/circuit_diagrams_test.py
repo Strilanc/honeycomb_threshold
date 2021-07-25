@@ -68,27 +68,27 @@ def test_plot_three_cycle():
         sub_rounds=20,
         style="3",
     ), only_repeat_block=True), r"""
-                        ~
-                        |                                                ~
-                        X                       X ~                     D|
-                         X                      |D|                      X
-                         |D                     | X                       X
-                         |                      |                         |
-                         |                      |                         |
-         ~--Y     D     X+----X     Y-----X     X     D     Y     X-----X |   X--~
-             @-----X     Y     D     @     X-----Y     X----+@     D     Y+----X
-              X     X-----@     X----+X     D     @-----X   | X-----X     @     D
-              |                      |                      |
-              |                      |                      |
-            X |                     D|                      X
-            |D|                      X                       X
-            | X                       X                      |D
+                                                ~
+                         ~                      |
+                        D|                      X                       X ~
+                         X                       X                      |D|
+                          X                      |D                     | X
+                          |                      |                      |
+                          |                      |                      |
+            X     X-----@ |   X-----X     D     @+----X     X-----X     @     D
+          ~-+Y     D     X+----X     Y-----X     X     D     Y     X-----X     X--~
+            | @-----X     Y     D     @     X-----Y     X----+@     D     Y-----X
             |                         |                      |
             |                         |                      |
-            X     D     Y     X-----X |   X-----Y     D     X+----X     Y-----X
-          ~--Y     X----+@     D     Y+----X     @-----X     Y     D     @     X--~
-              @-----X   | X-----X     @     D     X     X-----@     X----+X     D
-                        ~                         |                      |
-                                                  |                      ~
-                                                  ~
+            X                       X |                     D|
+             X                      |D|                      X
+             |D                     | X                       X
+             |                      |                         |
+             |                      |                         |
+            @+----X     X-----X     @     D     X     X-----@ |   X-----X     D
+             X     D     Y     X-----X     X----+Y     D     X+----X     Y-----X
+           ~--Y     X----+@     D     Y-----X   | @-----X     Y     D     @     X--~
+                         |                      ~                         |
+                         ~                                                |
+                                                                          ~
     """)

@@ -4,3 +4,4 @@ numpy
 pymatching
 pytest
 stim
+stimcirq

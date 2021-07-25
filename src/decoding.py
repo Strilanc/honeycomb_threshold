@@ -1,5 +1,5 @@
 import pathlib
-from typing import Callable, List
+from typing import Callable, List, Optional
 import math
 import subprocess
 import tempfile
@@ -67,6 +67,14 @@ def decode_using_pymatching(circuit: stim.Circuit,
     return predictions
 
 
+def internal_decoder_path() -> Optional[str]:
+    for possible_dirs in ["./", "src/"]:
+        path = possible_dirs + "internal_decoder.binary"
+        if pathlib.Path(path).exists():
+            return path
+    return None
+
+
 def decode_using_internal_decoder(circuit: stim.Circuit,
                                   det_samples: np.ndarray,
                                   ) -> np.ndarray:
@@ -89,12 +97,13 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
                     print(f" D{k}", file=f, end="")
                 print(file=f)
 
-        if not pathlib.Path("internal_decoder.binary").exists():
+        path = internal_decoder_path()
+        if path is None:
             raise RuntimeError(
                 "You need an `internal_decoder.binary` file in the working directory to "
                 "use `use_internal_decoder=True`.")
 
-        command = (f"./internal_decoder.binary "
+        command = (f"{path} "
                    f"-mode fi_match_from_dem "
                    f"-dem_fname '{dem_file}' "
                    f"-dets_fname '{dets_file}' "
