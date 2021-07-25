@@ -2,7 +2,7 @@ import csv
 import math
 import pathlib
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Sequence
+from typing import List, Dict, Tuple, Sequence, Optional
 
 import matplotlib.pyplot as plt
 
@@ -142,7 +142,7 @@ def total_error_to_per_round_error(error_rate: float, rounds: int) -> float:
     return round_error_rate
 
 
-def plot_data(*paths: str, title: str):
+def plot_data(*paths: str, title: str, out_path: Optional[str], show: bool, fig: plt.Figure = None, ax: plt.Axes = None):
     lay_to_noise_to_results: Dict[Tuple[int, int], Dict[float, RecordedExperimentData]] = {}
     for path in paths:
         with open(path, "r") as f:
@@ -154,6 +154,11 @@ def plot_data(*paths: str, title: str):
                 d2 = d1.setdefault(physical_error_rate, RecordedExperimentData())
                 d2.num_shots += int(row["num_shots"])
                 d2.num_correct += int(row["num_correct"])
+
+    assert fig is None == ax is None
+    if fig is None:
+        fig = plt.Figure()
+        ax = fig.add_subplot()
 
     cor = lambda p: total_error_to_per_round_error(p, rounds=sub_rounds)
     markers = "_ov*sp^<>8PhH+xXDd|"
@@ -175,11 +180,11 @@ def plot_data(*paths: str, title: str):
             x_bounds.append(physical_error_rate)
             ys_low.append(cor(low))
             ys_high.append(cor(high))
-        plt.plot(xs, ys, label=f"{tile_diam=},{sub_rounds=}", marker=markers[tile_diam], zorder=100 - tile_diam)
-        plt.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
+        ax.plot(xs, ys, label=f"{tile_diam=},{sub_rounds=}", marker=markers[tile_diam], zorder=100 - tile_diam)
+        ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
 
-    plt.legend()
-    plt.loglog()
+    ax.legend()
+    ax.loglog()
 
     def format_tick(p: float) -> str:
         assert p > 0
@@ -191,12 +196,19 @@ def plot_data(*paths: str, title: str):
         return f"{int(p)}e-{k}"
     ticks_y = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if k*10**-p <= 0.5]
     ticks_x = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if k*10**-p <= 0.5]
-    plt.xticks([x for x in ticks_x], labels=[format_tick(x) for x in ticks_x], rotation=45)
-    plt.yticks([y for y in ticks_y], labels=[format_tick(y) for y in ticks_y])
-    plt.xlim(0.0001, 0.5)
-    plt.ylim(0.0000001, 0.5)
-    plt.title(title)
-    plt.ylabel("Logical Error Rate (Vertical Observable)")
-    plt.xlabel("Physical Error Rate Parameter")
-    plt.grid()
-    plt.show()
+    ax.set_xticks([x for x in ticks_x])
+    ax.set_yticks([y for y in ticks_y])
+    ax.set_xticklabels([format_tick(x) for x in ticks_x], rotation=45)
+    ax.set_yticklabels([format_tick(y) for y in ticks_y])
+    ax.set_xlim(0.0001, 0.5)
+    ax.set_ylim(0.0000001, 0.5)
+    ax.set_title(title)
+    ax.set_ylabel("Logical Error Rate (Vertical Observable)")
+    ax.set_xlabel("Physical Error Rate Parameter")
+    ax.grid()
+    if out_path is not None:
+        fig.tight_layout()
+        fig.savefig(out_path)
+    if show:
+        ax.show()
+    return fig, ax

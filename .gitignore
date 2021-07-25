@@ -3,3 +3,6 @@
 **/*.csv
 **/__pycache__/**
 internal_decoder.binary
+src/repro.*
+src/data/*
+src/gen/*
