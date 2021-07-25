@@ -83,7 +83,7 @@ def noisify_concat_moments(*, lay: HoneycombLayout, moments: List[Union[NoiseAdd
 def generate_honeycomb_circuit(tile_diam: int,
                                sub_rounds: int,
                                noise: float,
-                               style: str = "6step_cnot",
+                               style: str,
                                ) -> stim.Circuit:
     """Generates a honeycomb code circuit performing a fault tolerant memory experiment.
 
@@ -287,13 +287,10 @@ def generate_rounds_3step_inline(lay: HoneycombLayout, mtrack: MeasurementTracke
     while k < n:
         edges = lay.round_edges(k)
         basis = lay.sub_round_edge_basis(k)
-        next_basis = lay.sub_round_edge_basis(k + 1)
-        pair_targets = [lay.q2i[q] for e in edges for q in [e.left, e.right]]
+        tp = [stim.target_x, stim.target_y, stim.target_z]["XYZ".index(basis)]
         circuit = stim.Circuit()
-        circuit.append_operation("DEPOLARIZE2", pair_targets, lay.noise)
-        circuit.append_operation(basis + "C" + next_basis, pair_targets)
-        circuit.append_operation("M" + basis, pair_targets[1::2], lay.noise)
-        circuit.append_operation(basis + "C" + next_basis, pair_targets)
+        circuit.append_operation("DEPOLARIZE2", [lay.q2i[q] for e in edges for q in [e.left, e.right]], lay.noise)
+        circuit.append_operation("MPP", [t for e in edges for t in [tp(lay.q2i[e.left]), stim.target_combiner(), tp(lay.q2i[e.right])]], lay.noise)
         circuit += _sub_round_measurements_and_detectors(lay, mtrack, k, measurement_op=None)
         moments.append(NoiseAddedAlready(circuit, skip_tick=False))
         k += 1

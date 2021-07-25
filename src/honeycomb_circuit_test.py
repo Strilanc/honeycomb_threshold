@@ -479,17 +479,13 @@ def test_circuit_details_3step_inline():
         TICK
 
         DEPOLARIZE2(0.001) 9 3 2 1 4 5 0 6 7 8 11 10
-        XCY 9 3 2 1 4 5 0 6 7 8 11 10
-        MX(0.001) 3 1 5 6 8 10
-        XCY 9 3 2 1 4 5 0 6 7 8 11 10
+        MPP(0.001) X9*X3 X2*X1 X4*X5 X0*X6 X7*X8 X11*X10
         OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
         SHIFT_COORDS(0, 0, 1)
         TICK
 
         DEPOLARIZE2(0.001) 7 1 2 3 0 5 4 10 9 8 11 6
-        YCZ 7 1 2 3 0 5 4 10 9 8 11 6
-        MY(0.001) 1 3 5 10 8 6
-        YCZ 7 1 2 3 0 5 4 10 9 8 11 6
+        MPP(0.001) Y7*Y1 Y2*Y3 Y0*Y5 Y4*Y10 Y9*Y8 Y11*Y6
         OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
         DETECTOR(0, 2, 0) rec[-12] rec[-11] rec[-8] rec[-6] rec[-5] rec[-2]
         DETECTOR(2, 5, 0) rec[-10] rec[-9] rec[-7] rec[-4] rec[-3] rec[-1]
@@ -497,17 +493,13 @@ def test_circuit_details_3step_inline():
         TICK
 
         DEPOLARIZE2(0.001) 11 5 0 1 4 3 2 8 7 6 9 10
-        CX 11 5 0 1 4 3 2 8 7 6 9 10
-        M(0.001) 5 1 3 8 6 10
-        CX 11 5 0 1 4 3 2 8 7 6 9 10
+        MPP(0.001) Z11*Z5 Z0*Z1 Z4*Z3 Z2*Z8 Z7*Z6 Z9*Z10
         OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
         SHIFT_COORDS(0, 0, 1)
         TICK
 
         DEPOLARIZE2(0.001) 9 3 2 1 4 5 0 6 7 8 11 10
-        XCY 9 3 2 1 4 5 0 6 7 8 11 10
-        MX(0.001) 3 1 5 6 8 10
-        XCY 9 3 2 1 4 5 0 6 7 8 11 10
+        MPP(0.001) X9*X3 X2*X1 X4*X5 X0*X6 X7*X8 X11*X10
         OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
         DETECTOR(0, 4, 0) rec[-24] rec[-22] rec[-19] rec[-12] rec[-10] rec[-7] rec[-6] rec[-4] rec[-1]
         DETECTOR(2, 1, 0) rec[-23] rec[-21] rec[-20] rec[-11] rec[-9] rec[-8] rec[-5] rec[-3] rec[-2]
@@ -516,9 +508,7 @@ def test_circuit_details_3step_inline():
 
         REPEAT 333 {
             DEPOLARIZE2(0.001) 7 1 2 3 0 5 4 10 9 8 11 6
-            YCZ 7 1 2 3 0 5 4 10 9 8 11 6
-            MY(0.001) 1 3 5 10 8 6
-            YCZ 7 1 2 3 0 5 4 10 9 8 11 6
+            MPP(0.001) Y7*Y1 Y2*Y3 Y0*Y5 Y4*Y10 Y9*Y8 Y11*Y6
             OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
             DETECTOR(0, 2, 0) rec[-30] rec[-29] rec[-26] rec[-24] rec[-23] rec[-20] rec[-12] rec[-11] rec[-8] rec[-6] rec[-5] rec[-2]
             DETECTOR(2, 5, 0) rec[-28] rec[-27] rec[-25] rec[-22] rec[-21] rec[-19] rec[-10] rec[-9] rec[-7] rec[-4] rec[-3] rec[-1]
@@ -526,9 +516,7 @@ def test_circuit_details_3step_inline():
             TICK
 
             DEPOLARIZE2(0.001) 11 5 0 1 4 3 2 8 7 6 9 10
-            CX 11 5 0 1 4 3 2 8 7 6 9 10
-            M(0.001) 5 1 3 8 6 10
-            CX 11 5 0 1 4 3 2 8 7 6 9 10
+            MPP(0.001) Z11*Z5 Z0*Z1 Z4*Z3 Z2*Z8 Z7*Z6 Z9*Z10
             OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
             DETECTOR(0, 0, 0) rec[-30] rec[-28] rec[-25] rec[-24] rec[-23] rec[-20] rec[-12] rec[-10] rec[-7] rec[-6] rec[-5] rec[-2]
             DETECTOR(2, 3, 0) rec[-29] rec[-27] rec[-26] rec[-22] rec[-21] rec[-19] rec[-11] rec[-9] rec[-8] rec[-4] rec[-3] rec[-1]
@@ -536,9 +524,7 @@ def test_circuit_details_3step_inline():
             TICK
 
             DEPOLARIZE2(0.001) 9 3 2 1 4 5 0 6 7 8 11 10
-            XCY 9 3 2 1 4 5 0 6 7 8 11 10
-            MX(0.001) 3 1 5 6 8 10
-            XCY 9 3 2 1 4 5 0 6 7 8 11 10
+            MPP(0.001) X9*X3 X2*X1 X4*X5 X0*X6 X7*X8 X11*X10
             OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
             DETECTOR(0, 4, 0) rec[-30] rec[-28] rec[-25] rec[-24] rec[-22] rec[-19] rec[-12] rec[-10] rec[-7] rec[-6] rec[-4] rec[-1]
             DETECTOR(2, 1, 0) rec[-29] rec[-27] rec[-26] rec[-23] rec[-21] rec[-20] rec[-11] rec[-9] rec[-8] rec[-5] rec[-3] rec[-2]

@@ -1,3 +1,6 @@
+"""Hacked together code for visualizing the 3d structure of the circuits."""
+
+
 import math
 from typing import Iterator, List, Dict, Any, Tuple
 
@@ -162,6 +165,31 @@ def plot_circuit(c: stim.Circuit, only_repeat_block: bool):
             pass
         elif op.name in ["X_ERROR", "DEPOLARIZE1", "DEPOLARIZE2"]:
             pass
+        elif op.name == "MPP":
+            ts = op.targets_copy()
+            groups = [[]]
+            for t in ts:
+                if t.is_combiner:
+                    groups.pop()
+                else:
+                    groups[-1].append(t)
+                    groups.append([])
+            groups.pop()
+            for g in groups:
+                assert 1 <= len(g) <= 2
+                for t in g:
+                    q = i2q[t.value]
+                    assert q not in cur_level
+                    if t.is_x_target:
+                        cur_level[q] = 'x'
+                    elif t.is_y_target:
+                        cur_level[q] = 'y'
+                    elif t.is_z_target:
+                        cur_level[q] = 'z'
+                    else:
+                        raise NotImplementedError()
+                if  len(g) == 2:
+                    cur_connectors.append((i2q[g[0].value], i2q[g[1].value]))
         else:
             raise NotImplementedError(op.name)
     if cur_level:
