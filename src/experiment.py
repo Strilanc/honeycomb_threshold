@@ -12,7 +12,7 @@ from honeycomb_layout import HoneycombLayout
 from probability_util import log_binomial, binary_search
 
 
-CSV_HEADER = "tile_diam,sub_rounds,physical_error_rate,num_shots,num_correct"
+CSV_HEADER = "tile_diam,sub_rounds,physical_error_rate,circuit_style,num_shots,num_correct"
 
 
 def collect_simulated_experiment_data(*cases: HoneycombLayout,
@@ -36,6 +36,7 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
                 tile_diam=lay.tile_diam,
                 sub_rounds=lay.sub_rounds,
                 noise=lay.noise,
+                style=lay.style,
             )
             num_correct = sample_decode_count_correct(
                 num_shots=num_next_shots,
@@ -43,7 +44,7 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
                 use_internal_decoder=use_internal_decoder,
             )
 
-            record = f"{lay.tile_diam},{lay.sub_rounds},{lay.noise},{num_next_shots},{num_correct}"
+            record = f"{lay.tile_diam},{lay.sub_rounds},{lay.noise},{lay.style},{num_next_shots},{num_correct}"
             with open(out_path, "a") as f:
                 print(record, file=f)
             print(record)
@@ -113,16 +114,17 @@ class RecordedExperimentData:
         actual_errors = self.num_shots - self.num_correct
         log_max_likelihood = log_binomial(p=actual_errors / self.num_shots, n=self.num_shots, hits=actual_errors)
         target_log_likelihood = log_max_likelihood + math.log(desired_ratio_vs_max_likelihood)
+        acc = 100
         low = binary_search(
-            func=lambda exp_err: log_binomial(p=exp_err / self.num_shots, n=self.num_shots, hits=actual_errors),
+            func=lambda exp_err: log_binomial(p=exp_err / (acc * self.num_shots), n=self.num_shots, hits=actual_errors),
             target=target_log_likelihood,
             min_x=0,
-            max_x=actual_errors)
+            max_x=actual_errors * acc) / acc
         high = binary_search(
-            func=lambda exp_err: -log_binomial(p=exp_err / self.num_shots, n=self.num_shots, hits=actual_errors),
+            func=lambda exp_err: -log_binomial(p=exp_err / (acc * self.num_shots), n=self.num_shots, hits=actual_errors),
             target=-target_log_likelihood,
-            min_x=actual_errors,
-            max_x=self.num_shots // 2)
+            min_x=actual_errors * acc,
+            max_x=self.num_shots * acc) / acc
         return low / self.num_shots, high / self.num_shots
 
     @property

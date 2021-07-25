@@ -1,8 +1,7 @@
+import math
 from typing import Iterator, List, Dict, Any, Tuple
 
 import stim
-
-from honeycomb_circuit import generate_honeycomb_circuit
 
 
 def _iter_circuit(c: stim.Circuit, reps: int, nested: int) -> Iterator[stim.CircuitInstruction]:
@@ -41,11 +40,23 @@ def diagram_3d(values: List[Dict[complex, Any]], connector_levels: List[List[Tup
     max_r = max(c.real for lvl in values for c in lvl.keys())
     min_i = min(c.imag for lvl in values for c in lvl.keys())
     max_i = max(c.imag for lvl in values for c in lvl.keys())
-    rewritten = []
-    rewritten2 = []
-    for lvl, vs in zip(connector_levels, values):
-        lvl2 = []
-        dv2 = dict(vs)
+    x_span = 1j * (len(values) + 2)
+    y_span = 1 * (len(values) + 3)
+    z_span = (1 + 1j) * 1
+
+    def round_complex(c: complex) -> complex:
+        return math.ceil(c.real) + math.ceil(c.imag) * 1j
+
+    def plot(xy: complex, z: int) -> complex:
+        return round_complex((xy.real + 1) * x_span + (xy.imag + 2) * y_span + z * z_span)
+
+    plotted_connectors = []
+    plotted_values = {
+        plot(xy, z): c
+        for z, vs in enumerate(values)
+        for xy, c in vs.items()
+    }
+    for z, (lvl, vs) in enumerate(zip(connector_levels, values)):
         for a, b in lvl:
             v1 = min(a.real, b.real)
             v2 = max(b.real, a.real)
@@ -54,78 +65,61 @@ def diagram_3d(values: List[Dict[complex, Any]], connector_levels: List[List[Tup
             if v1 == min_r and v2 == max_r:
                 v1 += a.imag * 1j
                 v2 += b.imag * 1j
-                lvl2.append((v1, v1 - 0.5))
-                lvl2.append((v2, v2 + 0.5))
-                dv2[v1 - 0.5] = '~'
-                dv2[v2 + 0.5] = '~'
+                plotted_connectors.append((plot(v1, z), plot(v1 - 0.5, z)))
+                plotted_connectors.append((plot(v2, z), plot(v2 + 0.5, z)))
+                plotted_values[plot(v1 - 0.5, z)] = '~'
+                plotted_values[plot(v2 + 0.5, z)] = '~'
             elif w1 == min_i and w2 == max_i:
                 w1 *= 1j
                 w2 *= 1j
                 w1 += a.real
                 w2 += b.real
-                lvl2.append((w1, w1 - 1j))
-                lvl2.append((w2, w2 + 1j))
-                dv2[w1 - 1j] = '~'
-                dv2[w2 + 1j] = '~'
+                plotted_connectors.append((plot(w1, z), plot(w1 - 0.5j, z)))
+                plotted_connectors.append((plot(w2, z), plot(w2 + 0.5j, z)))
+                plotted_values[plot(w1 - 0.5j, z)] = '~'
+                plotted_values[plot(w2 + 0.5j, z)] = '~'
             else:
-                lvl2.append((a, b))
-
-        rewritten.append(lvl2)
-        rewritten2.append(dv2)
-    connector_levels = rewritten
-    values = rewritten2
-
-    x_span = 1j * (len(values) + 2)
-    y_span = 1 * (len(values) + 3)
-    z_span = (1 + 1j) * 1
-
-    def plot(xy: complex, z: int) -> complex:
-        return (xy.real + 1) * x_span + (xy.imag + 2) * y_span + z * z_span
+                plotted_connectors.append((plot(a, z), plot(b, z)))
 
     projected = {}
-    for z, vs in enumerate(connector_levels):
-        for xy1, xy2 in vs:
-            p1 = plot(xy1, z)
-            p2 = plot(xy2, z)
-            if p1.real == p2.real:
-                r = p1.real
-                i1, i2 = int(p1.imag), int(p2.imag)
-                i1, i2 = min(i1, i2), max(i1, i2) + 1
-                for k in range(i1, i2):
-                    key = r + k*1j
-                    if projected.get(key, " ") in "-+":
-                        projected[key] = "+"
-                    else:
-                        projected[key] = "|"
-            if p1.imag == p2.imag:
-                r = p1.imag
-                i1, i2 = int(p1.real), int(p2.real)
-                i1, i2 = min(i1, i2), max(i1, i2) + 1
-                for k in range(i1, i2):
-                    key = r*1j + k
-                    if projected.get(key, " ") in "|+":
-                        projected[key] = "+"
-                    elif projected.get(key, " ") in "-":
-                        projected[key] = "="
-                    else:
-                        projected[key] = "-"
+    for p1, p2 in plotted_connectors:
+        if p1.real == p2.real:
+            r = p1.real
+            i1, i2 = int(p1.imag), int(p2.imag)
+            i1, i2 = min(i1, i2), max(i1, i2) + 1
+            for k in range(i1, i2):
+                key = r + k*1j
+                if projected.get(key, " ") in "-+":
+                    projected[key] = "+"
+                else:
+                    projected[key] = "|"
+        if p1.imag == p2.imag:
+            r = p1.imag
+            i1, i2 = int(p1.real), int(p2.real)
+            i1, i2 = min(i1, i2), max(i1, i2) + 1
+            for k in range(i1, i2):
+                key = r*1j + k
+                if projected.get(key, " ") in "|+":
+                    projected[key] = "+"
+                elif projected.get(key, " ") in "-":
+                    projected[key] = "="
+                else:
+                    projected[key] = "-"
 
-    for z, vs in enumerate(values):
-        for xy, c in vs.items():
-            p = plot(xy, z)
-            projected[p] = c
+    for p, c in plotted_values.items():
+        projected[p] = c
 
     return diagram_2d(projected)
 
 
-def plot_circuit(c: stim.Circuit):
+def plot_circuit(c: stim.Circuit, only_repeat_block: bool):
     i2q: Dict[int, complex] = {}
     seen_coords = set()
     levels: List[Dict[complex, str]] = []
     connectors: List[List[Tuple[complex, complex]]] = []
     cur_level: Dict[complex, str] = {}
     cur_connectors: List[Tuple[complex, complex]] = []
-    for op in _iter_circuit(c, 1, 1):
+    for op in _iter_circuit(c, 1, only_repeat_block):
         if op.name == "QUBIT_COORDS":
             for t in op.targets_copy():
                 q = t.value
@@ -135,23 +129,25 @@ def plot_circuit(c: stim.Circuit):
                 i2q[q] = p
                 assert p not in seen_coords
                 seen_coords.add(p)
-        elif op.name in ["M", "R", "H", "H_YZ", "C_XYZ"]:
+        elif op.name in ["M", "R", "H", "H_YZ", "C_XYZ", "MR"]:
             s = op.name
             if op.name == "H_YZ":
                 s = "G"
             if op.name == "C_XYZ":
                 s = "C"
+            if op.name == "MR":
+                s = "D"
             for t in op.targets_copy():
                 q = i2q[t.value]
                 assert q not in cur_level
                 cur_level[q] = s
-        elif op.name in ["CX"]:
+        elif op.name in ["CX", "XCX", "YCX"]:
             qs = [t.value for t in op.targets_copy()]
             for k in range(0, len(qs), 2):
                 q1 = i2q[qs[k]]
                 q2 = i2q[qs[k+1]]
                 assert q1 not in cur_level
-                cur_level[q1] = "@"
+                cur_level[q1] = "@" if len(op.name) == 2 else op.name[0]
                 assert q2 not in cur_level
                 cur_level[q2] = "X"
                 cur_connectors.append((q1, q2))
@@ -173,16 +169,4 @@ def plot_circuit(c: stim.Circuit):
         for q in i2q.values():
             if q not in level:
                 level[q] = "\\"
-    print(diagram_3d(levels, connectors))
-
-
-def main():
-    plot_circuit(generate_honeycomb_circuit(
-        noise=0.001,
-        tile_diam=1,
-        sub_rounds=13,
-    ))
-
-
-if __name__ == '__main__':
-    main()
+    return diagram_3d(levels, connectors)

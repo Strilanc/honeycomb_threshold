@@ -6,8 +6,8 @@ from honeycomb_layout import HoneycombLayout
 from measure_tracker import MeasurementTracker, Prev
 
 
-TWO_QUBIT_OPS = {"CX"}
-ONE_QUBIT_OPS = {"C_XYZ"}
+TWO_QUBIT_OPS = {"CX", "XCX", "YCX"}
+ONE_QUBIT_OPS = {"C_XYZ", "H", "H_YZ"}
 RESET_OPS = {"R", "MR"}
 MEASURE_OPS = {"M", "MR"}
 ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS"}
@@ -33,7 +33,7 @@ def fuse_moments(*, lay: HoneycombLayout, moments: List[stim.Circuit]) -> stim.C
         post = stim.Circuit()
         for op in moment_circuit:
             if not isinstance(op, stim.CircuitInstruction):
-                raise NotImplementedError()
+                raise NotImplementedError(str(op))
             targets = []
             handled = False
             if op.name in STABILIZER_OPS:
@@ -65,7 +65,11 @@ def fuse_moments(*, lay: HoneycombLayout, moments: List[stim.Circuit]) -> stim.C
     return result
 
 
-def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) -> stim.Circuit:
+def generate_honeycomb_circuit(tile_diam: int,
+                               sub_rounds: int,
+                               noise: float,
+                               style: str = "6",
+                               ) -> stim.Circuit:
     """Generates a honeycomb code circuit performing a fault tolerant memory experiment.
 
     Performs fault tolerant initialization, idling, and measurement.
@@ -79,6 +83,7 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         tile_diam=tile_diam,
         sub_rounds=sub_rounds,
         noise=noise,
+        style=style,
     )
     mtrack = MeasurementTracker()
 
@@ -88,7 +93,7 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         moments[-1].append_operation("QUBIT_COORDS", [i], [q.real, q.imag])
 
     # Initialize data.
-    moments[-1].append_operation("R", lay.data_qubit_indices)
+    moments[-1].append_operation("R", sorted(lay.q2i.values()))
 
     # Create dummy stabilizer records to compare against during initial rounds.
     # Then run enough rounds to ensure later measurements aren't comparing to dummies anymore.
@@ -101,21 +106,20 @@ def generate_honeycomb_circuit(tile_diam: int, sub_rounds: int, noise: float) ->
         mtrack.add_dummies(*[('1/2', h) for h in lay.round_hex_centers(sub_round)], obstacle=sub_round != 1)
 
     # Use a loop to advance the steady state as close as possible to the end.
-    moments += generate_rounds_six_cycle(lay, mtrack)
+    if lay.style == "6":
+        moments += generate_rounds_six_cycle(lay, mtrack)
+    elif lay.style == "3":
+        moments += generate_rounds_three_cycle(lay, mtrack)
+    else:
+        raise NotImplementedError(lay.style)
 
-    # Prepare data qubit basis for fault tolerant data measurement.
-    obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
-    if obs_basis != lay.sub_round_edge_basis(sub_rounds - 1):
-        moments[-1].append_operation("C_XYZ", lay.data_qubit_indices)
-        moments.append(stim.Circuit())
 
     # Perform the fault tolerant data measurement.
     moments[-1].append_operation("M", lay.data_qubit_indices)
     mtrack.add_measurements(*lay.data_qubit_coords)
 
+    obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
     last_measure_basis = "XYZ"[(sub_rounds - 1) % 3]
-
-    assert last_measure_basis == obs_basis if sub_rounds % 2 == 0 else obs_basis == "XYZ"[sub_rounds % 3]
     if last_measure_basis == obs_basis:
         # Compare data measurements to same-basis edge measurements from last round.
         for e in lay.round_edges("XYZ".index(obs_basis)):
@@ -201,6 +205,55 @@ def generate_rounds_six_cycle(lay: HoneycombLayout, mtrack: MeasurementTracker) 
             b3,
             _sub_round_measurements_and_detectors(lay, mtrack, n - 1)
         ]
+
+    obs_basis, obs_qubits = lay.obs_1_before_sub_round(lay.sub_rounds)
+    if obs_basis != lay.sub_round_edge_basis(lay.sub_rounds - 1):
+        moments[-1].append_operation("C_XYZ", lay.data_qubit_indices)
+        moments.append(stim.Circuit())
+
+    return moments
+
+
+def generate_rounds_three_cycle(lay: HoneycombLayout, mtrack: MeasurementTracker) -> List[stim.Circuit]:
+    n = lay.sub_rounds
+    moments = []
+    if n == 0:
+        raise NotImplementedError("Zero rounds.")
+    k = 0
+    while k < n + 2:
+        circuit = stim.Circuit()
+        if 0 <= k < n:
+            circuit.append_operation(lay.sub_round_edge_basis(k) + "CX",
+                                     [lay.q2i[q] for e in lay.round_edges(k) for q in [e.left, e.center]])
+        if 0 <= k - 1 < n:
+            circuit.append_operation(lay.sub_round_edge_basis(k - 1) + "CX",
+                                     [lay.q2i[q] for e in lay.round_edges(k - 1) for q in [e.right, e.center]])
+        if 0 <= k - 2 < n:
+            circuit += _sub_round_measurements_and_detectors(lay, mtrack, k - 2, demolition=True)
+        elif k - 2 <= 0:
+            circuit += _sub_round_resets(lay, k - 2)
+        moments.append(circuit)
+        k += 1
+
+        # Steady state starts on round 6 and has period 3. Once we get to 9 we've got the whole loop.
+        if k == 9:
+            iterations = (n - k + 3) // 3
+            if iterations > 1:
+                moments[-3:] = [fuse_moments(lay=lay, moments=moments[-3:]) * iterations]
+                k += iterations * 3 - 3
+
+    obs_basis, _ = lay.obs_1_before_sub_round(lay.sub_rounds)
+    if obs_basis == "X":
+        circuit = stim.Circuit()
+        circuit.append_operation("H", lay.data_qubit_indices)
+        moments.append(circuit)
+    elif obs_basis == "Y":
+        circuit = stim.Circuit()
+        circuit.append_operation("H_YZ", lay.data_qubit_indices)
+        moments.append(circuit)
+
+    moments.append(stim.Circuit())
+
     return moments
 
 
@@ -242,62 +295,6 @@ def _sub_round_2q_ops(lay: HoneycombLayout, sub_round: int) -> Tuple[stim.Circui
     return result1, result2
 
 
-def _generate_honeycomb_sub_round(lay: HoneycombLayout,
-                                  mtrack: MeasurementTracker,
-                                  sub_round: int) -> List[stim.Circuit]:
-    """Returns a circuit performing one layer of edge measurements from the honeycomb code."""
-
-
-    moments = [stim.Circuit() for _ in range(6)]
-
-    # Compute edge operations.
-    cnot_targets_1st: List[int] = []
-    cnot_targets_2nd: List[int] = []
-    measure_targets: List[int] = []
-    for edge in lay.round_edges(sub_round):
-        qa, qb, qc = lay.q2i[edge.left], lay.q2i[edge.right], lay.q2i[edge.center]
-        cnot_targets_1st.append(qa)
-        cnot_targets_1st.append(qc)
-        cnot_targets_2nd.append(qb)
-        cnot_targets_2nd.append(qc)
-        measure_targets.append(qc)
-        mtrack.add_measurements(edge)
-
-    # Begin measurements by reseting measurement qubits and switching data qubit basis.
-    moments[0].append_operation("R", measure_targets)
-    moments[1].append_operation("C_XYZ", lay.data_qubit_indices_1st)
-
-    # Perform first layer of CNOTs.
-    moments[2].append_operation("C_XYZ", lay.data_qubit_indices_2nd)
-    moments[3].append_operation("CNOT", cnot_targets_1st)
-
-    # Perform second layer of CNOTs.
-    moments[4].append_operation("CNOT", cnot_targets_2nd)
-
-    # Finish measurements and restore data qubit basis.
-    moments[5].append_operation("M", measure_targets)
-
-    # Multiply edge measurements along the observable's path into the observable.
-    moments[5].append_operation(
-        "OBSERVABLE_INCLUDE",
-        mtrack.get_record_targets(*(
-                set(lay.obs_1_edges) & set(lay.round_edges(sub_round))
-        )),
-        0,
-    )
-
-    # Edges from this round form half of the edges for the spoke-center hexes from last round.
-    for h in lay.round_hex_centers((sub_round - 1) % 3):
-        mtrack.add_group(*lay.first_edges_around_hex(h), group_key=('1/2', h))
-    # Edges from this round complete the stabilizer for the spoke-center hexes from two rounds ago.
-    for h in lay.round_hex_centers((sub_round - 2) % 3):
-        mtrack.add_group(('1/2', h), *lay.second_edges_around_hex(h), group_key=h)
-        mtrack.append_detector(h, Prev(h), out_circuit=moments[-1], coords=[h.real, h.imag, 0])
-    moments[5].append_operation("SHIFT_COORDS", [], [0, 0, 1])
-
-    return moments
-
-
 def _sub_round_resets(
         lay: HoneycombLayout,
         sub_round: int) -> List[stim.Circuit]:
@@ -310,12 +307,14 @@ def _sub_round_resets(
 def _sub_round_measurements_and_detectors(
         lay: HoneycombLayout,
         mtrack: MeasurementTracker,
-        sub_round: int) -> List[stim.Circuit]:
+        sub_round: int,
+        demolition: bool = False) -> List[stim.Circuit]:
     """Returns a circuit performing one layer of edge measurements from the honeycomb code."""
 
     round_edges = lay.round_edges(sub_round)
     moment = stim.Circuit()
-    moment.append_operation("M", [lay.q2i[edge.center] for edge in round_edges])
+    op = "MR" if demolition else "M"
+    moment.append_operation(op, [lay.q2i[edge.center] for edge in round_edges])
     mtrack.add_measurements(*round_edges)
 
     # Multiply edge measurements along the observable's path into the observable.

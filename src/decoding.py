@@ -99,7 +99,6 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
                    f"-dem_fname '{dem_file}' "
                    f"-dets_fname '{dets_file}' "
                    f"-ignore_distance_1_errors "
-                   f"-ignore_undecomposed_errors "
                    f"-out '{out_file}'")
         if USE_CORRELATIONS:
             command += " -cheap_corr -edge_corr -node_corr"
