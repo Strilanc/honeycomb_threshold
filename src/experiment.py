@@ -18,10 +18,44 @@ CSV_HEADER = "tile_diam,sub_rounds,physical_error_rate,circuit_style,num_shots,n
 def collect_simulated_experiment_data(*cases: HoneycombLayout,
                                       min_shots: int,
                                       max_shots: int,
+                                      max_sample_std_dev: float = 1,
                                       min_seen_logical_errors: int,
                                       use_internal_decoder: bool = False,
                                       out_path: str,
                                       discard_previous_data: bool):
+    """
+    Args:
+        cases: The layouts to sample from.
+        min_shots: The minimum number of samples to take from each case.
+
+            This property effectively controls the quality of estimates of error rates when the true
+            error is close to 50%
+
+        max_shots: The maximum cutoff number of samples to take from each case.
+
+            This property effectively controls the "noise floor" below which error rates cannot
+            be estimated well. For example, setting this to 1e6 means that error rates below
+            5e-5 will have estimates with large similar-relative-likelihood regions.
+
+            This property overrides all the properties that ask for more samples until some
+            statistical requirement is met.
+        max_sample_std_dev: Defaults to irrelevant. When this is set, more samples will be taken
+            until sqrt(p * (1-p) / n) is at most this value, where n is the number of shots sampled
+            and p is the number of logical errors seen divided by n. Note that p is not round
+            adjusted; you may need to set max_sample_std_dev lower to account for the total-to-round
+            conversion.
+
+            This property is intended for controlling the quality of estimates of error rates when
+            the true error rate is close to 50%.
+        min_seen_logical_errors: More samples will be taken until the number of logical errors seen
+            is at least this large. Set to 10 or 100 for fast estimates. Set to 1000 or 10000 for
+            good statistical estimates of low probability errors.
+        use_internal_decoder: Defaults to False. Switches the decoder from pymatching to an internal
+            decoder, which must be present as a binary in the source directory.
+        out_path: Where to write the CSV sample statistic data.
+        discard_previous_data: If set, `out_path` is overwritten. If not set, `out_path` will be
+            appended to (or created if needed).
+    """
     print(CSV_HEADER)
     if discard_previous_data or not pathlib.Path(out_path).exists():
         with open(out_path, "w") as f:
@@ -51,7 +85,11 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
 
             total_shots += num_next_shots
             num_seen_errors += num_next_shots - num_correct
-            if num_seen_errors >= min_seen_logical_errors or total_shots >= max_shots:
+            p = num_seen_errors / total_shots
+            cur_sample_std_dev = math.sqrt(p * (1 - p) / total_shots)
+            if total_shots >= max_shots:
+                break
+            if num_seen_errors >= min_seen_logical_errors and cur_sample_std_dev <= max_sample_std_dev:
                 break
             num_next_shots = min(2 * num_next_shots, max_shots - total_shots)
 
@@ -136,13 +174,19 @@ class RecordedExperimentData:
 
 def total_error_to_per_round_error(error_rate: float, rounds: int) -> float:
     """Convert from total error rate to per-round error rate."""
-    randomize_rate = min(1.0, 2*error_rate)
+    if error_rate > 0.5:
+        return 1 - total_error_to_per_round_error(1 - error_rate, rounds)
+    assert 0 <= error_rate <= 0.5
+    randomize_rate = 2*error_rate
     round_randomize_rate = 1 - (1 - randomize_rate)**(1 / rounds)
     round_error_rate = round_randomize_rate / 2
     return round_error_rate
 
 
-def plot_data(*paths: str, title: str, out_path: Optional[str], show: bool, fig: plt.Figure = None, ax: plt.Axes = None):
+def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: bool = None, fig: plt.Figure = None, ax: plt.Axes = None):
+    if out_path is None and show is None:
+        show = True
+
     lay_to_noise_to_results: Dict[Tuple[int, int], Dict[float, RecordedExperimentData]] = {}
     for path in paths:
         with open(path, "r") as f:
@@ -157,7 +201,7 @@ def plot_data(*paths: str, title: str, out_path: Optional[str], show: bool, fig:
 
     assert fig is None == ax is None
     if fig is None:
-        fig = plt.Figure()
+        fig = plt.figure()
         ax = fig.add_subplot()
 
     cor = lambda p: total_error_to_per_round_error(p, rounds=sub_rounds)
@@ -172,7 +216,7 @@ def plot_data(*paths: str, title: str, out_path: Optional[str], show: bool, fig:
         for physical_error_rate in sorted(group.keys()):
             datum = group[physical_error_rate]
             # Show curve going through max likelihood estimate, unless it's at zero error.
-            if datum.num_shots > datum.num_correct:
+            if datum.num_correct < datum.num_shots:
                 xs.append(physical_error_rate)
                 ys.append(cor(datum.logical_error_rate))
             # Show relative-likelihood-above-1e-3 error bars as a colored region.
@@ -210,5 +254,6 @@ def plot_data(*paths: str, title: str, out_path: Optional[str], show: bool, fig:
         fig.tight_layout()
         fig.savefig(out_path)
     if show:
-        ax.show()
+        plt.show()
+
     return fig, ax

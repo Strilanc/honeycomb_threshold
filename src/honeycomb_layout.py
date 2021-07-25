@@ -72,7 +72,7 @@ SECOND_EDGES_AROUND_HEX: List[Tuple[complex, complex]] = [
 
 
 class HoneycombLayout:
-    def __init__(self, tile_diam: int, sub_rounds: int, noise: float, style: str = "3step_demolition"):
+    def __init__(self, tile_diam: int, sub_rounds: int, noise: float, style: str):
         self.tile_diam = tile_diam
         self.sub_rounds = sub_rounds
         self.noise = noise
