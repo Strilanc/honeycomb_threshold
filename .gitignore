@@ -4,5 +4,5 @@
 **/__pycache__/**
 internal_decoder.binary
 src/repro.*
-src/data/*
-src/gen/*
+**/data/*
+**/gen/*

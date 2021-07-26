@@ -69,7 +69,7 @@ def decode_using_pymatching(circuit: stim.Circuit,
 
 
 def internal_decoder_path() -> Optional[str]:
-    for possible_dirs in ["./", "src/"]:
+    for possible_dirs in ["./", "src/", "../"]:
         path = possible_dirs + "internal_decoder.binary"
         if pathlib.Path(path).exists():
             return path
