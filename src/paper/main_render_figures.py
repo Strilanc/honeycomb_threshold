@@ -7,6 +7,12 @@ from experiment import plot_data
 
 def main():
     plot_data(
+        "data/3step_inline.csv",
+        title="Toric Honeycomb round errors (3step_inline circuit)",
+        out_path="gen/3step_inline.png",
+        show=False)
+
+    plot_data(
         "data/3step_demolition.csv",
         title="Toric Honeycomb round errors (3step_demolition circuit)",
         out_path="gen/3step_demolition.png",

@@ -94,50 +94,6 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
             num_next_shots = min(2 * num_next_shots, max_shots - total_shots)
 
 
-def run_simulated_experiment(*,
-                             physical_error_rates: List[float],
-                             tile_diams: Sequence[int],
-                             discard_previous_data: bool,
-                             recorded_data_file_path: str,
-                             other_data_paths: Sequence[str] = (),
-                             shots: int,
-                             sub_rounds: int,
-                             use_internal_decoder: bool,
-                             plot_title: str,
-                             plot_after: bool):
-    append = not discard_previous_data
-    if not pathlib.Path(recorded_data_file_path).exists():
-        append = False
-    if shots > 0:
-        with open(recorded_data_file_path, "a" if append else "w") as f:
-            if not append:
-                print(CSV_HEADER, file=f, flush=True)
-            print("tile_diams", tile_diams)
-            print("probabilities", physical_error_rates)
-            print("num_shots", shots)
-            for noise in physical_error_rates:
-                s = f"physical error rate {noise}:"
-                s = s.rjust(50)
-                print(s , end="")
-                for tile_diam in tile_diams:
-                    circuit = generate_honeycomb_circuit(
-                        tile_diam=tile_diam,
-                        sub_rounds=sub_rounds,
-                        noise=noise,
-                    )
-                    num_correct = sample_decode_count_correct(
-                        num_shots=shots,
-                        circuit=circuit,
-                        use_internal_decoder=use_internal_decoder,
-                    )
-                    print(f" {shots - num_correct}", end="")
-                    print(f"{tile_diam},{sub_rounds},{noise},{shots},{num_correct}", file=f, flush=True)
-                print()
-
-    if plot_after:
-        plot_data(recorded_data_file_path, *other_data_paths, title=plot_title)
-
-
 @dataclass
 class RecordedExperimentData:
     num_shots: int = 0

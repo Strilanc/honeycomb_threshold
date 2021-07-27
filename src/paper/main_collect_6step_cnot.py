@@ -24,6 +24,7 @@ def main():
         discard_previous_data=True,
         min_shots=10**4,
         max_shots=10**7,
+        max_sample_std_dev=1e-2,
         min_seen_logical_errors=10**3,
         use_internal_decoder=True,
     )
