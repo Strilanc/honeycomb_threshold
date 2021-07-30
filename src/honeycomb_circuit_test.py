@@ -455,7 +455,6 @@ def test_circuit_details_PC3():
         DEPOLARIZE1(0.001) 0 1 2 3 4 5 6 7 8 9 10 11 12 14 15 17 18 20 22 23 24 26 27 29
         TICK
 
-        X_ERROR(0.001) 0 1 2 3 4 5 6 7 8 9 10 11
         OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
         OBSERVABLE_INCLUDE(0) rec[-17] rec[-16]
         OBSERVABLE_INCLUDE(0) rec[-11] rec[-10]
