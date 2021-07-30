@@ -5,7 +5,7 @@ from the paper ["Dynamically Generated Logical Qubits"](https://arxiv.org/abs/21
 
 The code in this repository uses [Stim](https://github.com/quantumlib/Stim) for defining the code
 as a circuit, and for simulating noisy runs of that circuit.
-It then decodes those simulated runs using [PyMatching](https://github.com/oscarhiggott/PyMatching/issues)
+It then decodes those simulated runs using [PyMatching](https://github.com/oscarhiggott/PyMatching)
 (or using an internal decoding tool not included in the repository).
 Finally, it uses the collected data to produce plots like this one:
 
@@ -19,15 +19,15 @@ In a python 3.9+ environment, install the requirements from `requirements.txt`:
 python -m pip install -r requirements.txt
 ```
 
-The python file `src/main.py` is by default configured to collect a few data points and then plot them.
+The python file `src/main_example.py` is by default configured to collect a few data points and then plot them.
 You can run it in your python environment:
 
-```python src/main.py```
+```python src/main_example.py```
 
 This should create a file `test.csv` and begin populating it (printing CSV data to the file and also to the console).
 After a few minutes, it will finish and pop up a plot summarizing the data.
 
-You can get more data by customizing the `collect_simulated_experiment_data` call from `src/main.py`:
+You can get more data by customizing the `collect_simulated_experiment_data` call from `src/main_example.py`:
 
 ```python
 collect_simulated_experiment_data(
@@ -36,6 +36,7 @@ collect_simulated_experiment_data(
             noise=p,
             tile_diam=d,
             sub_rounds=30,
+            style="SD6",
         )
         for d in [2, 3, 4]
         for p in np.geomspace(start=5e-4, stop=3e-3, num=5)

@@ -2,4 +2,6 @@ matplotlib
 networkx
 numpy
 pymatching
+pytest
 stim
+stimcirq

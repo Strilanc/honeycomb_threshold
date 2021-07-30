@@ -11,6 +11,7 @@ def main():
                 noise=p,
                 tile_diam=d,
                 sub_rounds=30,
+                style="SD6",
             )
             for d in [2, 3, 4]
             for p in np.geomspace(start=5e-4, stop=3e-3, num=5)

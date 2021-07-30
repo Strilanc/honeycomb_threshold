@@ -1,5 +1,6 @@
 import pathlib
-from typing import Callable, List
+import sys
+from typing import Callable, List, Optional
 import math
 import subprocess
 import tempfile
@@ -43,7 +44,7 @@ def sample_decode_count_correct(*,
 
     # Count how many solutions were completely correct.
     assert predictions.shape == obs_samples.shape
-    all_corrects = np.count_nonzero(predictions ^ obs_samples, axis=1) == 0
+    all_corrects = np.all(predictions == obs_samples, axis=1)
     return np.count_nonzero(all_corrects)
 
 
@@ -65,6 +66,14 @@ def decode_using_pymatching(circuit: stim.Circuit,
         expanded_det[-1] = 0
         predictions[k] = matching_graph.decode(expanded_det)
     return predictions
+
+
+def internal_decoder_path() -> Optional[str]:
+    for possible_dirs in ["./", "src/", "../"]:
+        path = possible_dirs + "internal_decoder.binary"
+        if pathlib.Path(path).exists():
+            return path
+    return None
 
 
 def decode_using_internal_decoder(circuit: stim.Circuit,
@@ -89,21 +98,33 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
                     print(f" D{k}", file=f, end="")
                 print(file=f)
 
-        if not pathlib.Path("internal_decoder.binary").exists():
+        path = internal_decoder_path()
+        if path is None:
             raise RuntimeError(
                 "You need an `internal_decoder.binary` file in the working directory to "
                 "use `use_internal_decoder=True`.")
 
-        command = (f"./internal_decoder.binary "
+        command = (f"{path} "
                    f"-mode fi_match_from_dem "
                    f"-dem_fname '{dem_file}' "
                    f"-dets_fname '{dets_file}' "
                    f"-ignore_distance_1_errors "
-                   f"-ignore_undecomposed_errors "
                    f"-out '{out_file}'")
         if USE_CORRELATIONS:
             command += " -cheap_corr -edge_corr -node_corr"
-        subprocess.check_output(command, shell=True)
+        try:
+            subprocess.check_output(command, shell=True)
+        except:
+            with open(dem_file) as f:
+                with open("repro.dem", "w") as f2:
+                    print(f.read(), file=f2)
+            with open(dets_file) as f:
+                with open("repro.dets", "w") as f2:
+                    print(f.read(), file=f2)
+            with open("repro.stim", "w") as f2:
+                print(circuit, file=f2)
+            print(f"Wrote case to `repro.dem`, `repro.dets`, and `repro.stim`.\nCommand line is: {command}", file=sys.stderr)
+            raise
 
         predictions = np.zeros(shape=(num_shots, num_obs), dtype=np.bool8)
         with open(out_file, "r") as f:

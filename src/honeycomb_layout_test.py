@@ -11,7 +11,7 @@ def diagram_2d(values: Dict[complex, Any]):
     h = int(max((v.imag for v in values), default=0) + 1)
     s = ""
     for y in range(h):
-        line = ""
+        line = "    "
         for x in range(w):
             c = str(values.get(x + y * 1j, " "))
             for k in range(len(c) - 1):
@@ -23,9 +23,9 @@ def diagram_2d(values: Dict[complex, Any]):
 
 
 def test_ctx():
-    ctx1 = HoneycombLayout(tile_diam=1, sub_rounds=18, noise=0.001)
-    ctx2 = HoneycombLayout(tile_diam=2, sub_rounds=18, noise=0.001)
-    ctx3 = HoneycombLayout(tile_diam=3, sub_rounds=18, noise=0.001)
+    ctx1 = HoneycombLayout(tile_diam=1, sub_rounds=18, noise=0.001, style="SD6")
+    ctx2 = HoneycombLayout(tile_diam=2, sub_rounds=18, noise=0.001, style="SD6")
+    ctx3 = HoneycombLayout(tile_diam=3, sub_rounds=18, noise=0.001, style="SD6")
 
     assert ctx1.wrap(-1) == 3
     assert ctx1.wrap(-1j) == 5j
@@ -126,7 +126,7 @@ def test_ctx():
 
 
 def test_ctx_layout():
-    ctx = HoneycombLayout(tile_diam=2, sub_rounds=20, noise=0.001)
+    ctx = HoneycombLayout(tile_diam=2, sub_rounds=20, noise=0.001, style="SD6")
     def scale(pt: complex) -> complex:
         return pt.real * 8 + pt.imag * 2j
     d = {}
@@ -141,35 +141,35 @@ def test_ctx_layout():
         for q in qs:
             d[scale(q) + r + 1] = p
     assert diagram_2d(d).strip() == """
-X       q  YXXZ m       q       X       q       m       q
-        m               m               m               m
-m       qZYYX   Y       q       m       q       Y       q
-        m               m               m               m
-Z       qZY  XZ m       q       Z       q       m       q
-        m               m               m               m
-m       q  YXXZ X       q       m       q       X       q
-        m               m               m               m
-Y       qZYYX   m       q       Y       q       m       q
-        m               m               m               m
-m       qZY  XZ Z       q       m       q       Z       q
-        m               m               m               m
-X       q  YXXZ m       q       X       q       m       q
-        m               m               m               m
-m       qZYYX   Y       q       m       q       Y       q
-        m               m               m               m
-Z       qZY  XZ m       q       Z       q       m       q
-        m               m               m               m
-m       q  YXXZ X       q       m       q       X       q
-        m               m               m               m
-Y       qZYYX   m       q       Y       q       m       q
-        m               m               m               m
-m       qZY  XZ Z       q       m       q       Z       q
-        m               m               m               m
+    X       q  YXXZ m       q       X       q       m       q
+            m               m               m               m
+    m       qZYYX   Y       q       m       q       Y       q
+            m               m               m               m
+    Z       qZY  XZ m       q       Z       q       m       q
+            m               m               m               m
+    m       q  YXXZ X       q       m       q       X       q
+            m               m               m               m
+    Y       qZYYX   m       q       Y       q       m       q
+            m               m               m               m
+    m       qZY  XZ Z       q       m       q       Z       q
+            m               m               m               m
+    X       q  YXXZ m       q       X       q       m       q
+            m               m               m               m
+    m       qZYYX   Y       q       m       q       Y       q
+            m               m               m               m
+    Z       qZY  XZ m       q       Z       q       m       q
+            m               m               m               m
+    m       q  YXXZ X       q       m       q       X       q
+            m               m               m               m
+    Y       qZYYX   m       q       Y       q       m       q
+            m               m               m               m
+    m       qZY  XZ Z       q       m       q       Z       q
+            m               m               m               m
       """.strip()
 
 
 def test_ctx_indexing():
-    ctx = HoneycombLayout(tile_diam=1, sub_rounds=20, noise=0.001)
+    ctx = HoneycombLayout(tile_diam=1, sub_rounds=20, noise=0.001, style="SD6")
     def scale(pt: complex) -> complex:
         return pt.real * 4 + pt.imag * 2j
     d = {}
@@ -178,16 +178,16 @@ def test_ctx_indexing():
     for k, v in ctx._hex_center_categories.items():
         d[scale(k)] = "XYZ"[v]
     assert diagram_2d(d).strip() == """
-X   3  15  18
-    4      19
-0   5   Y  20
-    6      21
-Z   7  16  22
-    8      23
-1   9   X  24
-   10      25
-Y  11  17  26
-   12      27
-2  13   Z  28
-   14      29
+    X   0  21   6
+       15      24
+   12   1   Y   7
+       16      25
+    Z   2  22   8
+       17      26
+   13   3   X   9
+       18      27
+    Y   4  23  10
+       19      28
+   14   5   Z  11
+       20      29
         """.strip()
