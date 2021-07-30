@@ -2,26 +2,26 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
-from experiment import plot_data
+from plotting import plot_data
 
 
 def main():
     plot_data(
-        "data/3step_inline.csv",
-        title="Toric Honeycomb round errors (3step_inline circuit)",
-        out_path="gen/3step_inline.png",
+        "data/EM3.csv",
+        title="Toric Honeycomb round errors (EM3)",
+        out_path="gen/EM3.png",
         show=False)
 
     plot_data(
-        "data/3step_demolition.csv",
-        title="Toric Honeycomb round errors (3step_demolition circuit)",
-        out_path="gen/3step_demolition.png",
+        "data/SD6.csv",
+        title="Toric Honeycomb round errors (SD6)",
+        out_path="gen/SD6.png",
         show=False)
 
     plot_data(
-        "data/6step_cnot.csv",
-        title="Toric Honeycomb round errors (6step_cnot circuit)",
-        out_path="gen/6step_cnot.png",
+        "data/PC3.csv",
+        title="Toric Honeycomb round errors (PC3)",
+        out_path="gen/PC3.png",
         show=False)
 
 

@@ -23,9 +23,9 @@ def diagram_2d(values: Dict[complex, Any]):
 
 
 def test_ctx():
-    ctx1 = HoneycombLayout(tile_diam=1, sub_rounds=18, noise=0.001, style="6step_cnot")
-    ctx2 = HoneycombLayout(tile_diam=2, sub_rounds=18, noise=0.001, style="6step_cnot")
-    ctx3 = HoneycombLayout(tile_diam=3, sub_rounds=18, noise=0.001, style="6step_cnot")
+    ctx1 = HoneycombLayout(tile_diam=1, sub_rounds=18, noise=0.001, style="SD6")
+    ctx2 = HoneycombLayout(tile_diam=2, sub_rounds=18, noise=0.001, style="SD6")
+    ctx3 = HoneycombLayout(tile_diam=3, sub_rounds=18, noise=0.001, style="SD6")
 
     assert ctx1.wrap(-1) == 3
     assert ctx1.wrap(-1j) == 5j
@@ -126,7 +126,7 @@ def test_ctx():
 
 
 def test_ctx_layout():
-    ctx = HoneycombLayout(tile_diam=2, sub_rounds=20, noise=0.001, style="6step_cnot")
+    ctx = HoneycombLayout(tile_diam=2, sub_rounds=20, noise=0.001, style="SD6")
     def scale(pt: complex) -> complex:
         return pt.real * 8 + pt.imag * 2j
     d = {}
@@ -169,7 +169,7 @@ def test_ctx_layout():
 
 
 def test_ctx_indexing():
-    ctx = HoneycombLayout(tile_diam=1, sub_rounds=20, noise=0.001, style="6step_cnot")
+    ctx = HoneycombLayout(tile_diam=1, sub_rounds=20, noise=0.001, style="SD6")
     def scale(pt: complex) -> complex:
         return pt.real * 4 + pt.imag * 2j
     d = {}

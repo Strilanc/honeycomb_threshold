@@ -1,15 +1,15 @@
 import itertools
 
 import pytest
-import stim
 
 from honeycomb_circuit import generate_honeycomb_circuit
+from hack_pycharm_pybind_pytest_workaround import stim
 
 
 @pytest.mark.parametrize('tile_diam,sub_rounds,style', itertools.product(
     range(1, 5),
     range(1, 24),
-    ["3step_demolition", "6step_cnot", "3step_inline"],
+    ["PC3", "SD6", "EM3"],
 ))
 def test_circuit_has_decomposing_error_model(tile_diam: int, sub_rounds: int, style: str):
     circuit = generate_honeycomb_circuit(
@@ -21,12 +21,17 @@ def test_circuit_has_decomposing_error_model(tile_diam: int, sub_rounds: int, st
     _ = circuit.detector_error_model(decompose_errors=True)
 
 
-def test_circuit_details_6step_cnot():
+xxx = stim.Circuit.__repr__
+stim.Circuit.__repr__ = lambda e: xxx(e)
+
+
+
+def test_circuit_details_SD6():
     actual = generate_honeycomb_circuit(
         tile_diam=1,
         sub_rounds=1003,
         noise=0.001,
-        style="6step_cnot",
+        style="SD6",
     )
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
@@ -268,12 +273,12 @@ def test_circuit_details_6step_cnot():
 """)
 
 
-def test_circuit_details_3step_demolition():
+def test_circuit_details_PC3():
     actual = generate_honeycomb_circuit(
         tile_diam=1,
         sub_rounds=1003,
         noise=0.001,
-        style="3step_demolition",
+        style="PC3",
     )
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
@@ -452,12 +457,12 @@ def test_circuit_details_3step_demolition():
     """)
 
 
-def test_circuit_details_3step_inline():
+def test_circuit_details_EM3():
     actual = generate_honeycomb_circuit(
         tile_diam=1,
         sub_rounds=1003,
         noise=0.001,
-        style="3step_inline",
+        style="EM3",
     )
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
@@ -475,7 +480,6 @@ def test_circuit_details_3step_inline():
         QUBIT_COORDS(3, 5) 11
         R 0 1 2 3 4 5 6 7 8 9 10 11
         X_ERROR(0.001) 0 1 2 3 4 5 6 7 8 9 10 11
-        DEPOLARIZE1(0.001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
         TICK
 
         DEPOLARIZE2(0.001) 9 3 2 1 4 5 0 6 7 8 11 10
@@ -539,5 +543,4 @@ def test_circuit_details_3step_inline():
         DETECTOR(0, 4, 0) rec[-24] rec[-22] rec[-19] rec[-18] rec[-16] rec[-13] rec[-9] rec[-8] rec[-7] rec[-3] rec[-2] rec[-1]
         DETECTOR(2, 1, 0) rec[-23] rec[-21] rec[-20] rec[-17] rec[-15] rec[-14] rec[-12] rec[-11] rec[-10] rec[-6] rec[-5] rec[-4]
         OBSERVABLE_INCLUDE(0) rec[-11] rec[-10] rec[-8] rec[-7]
-        DEPOLARIZE1(0.001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
     """)

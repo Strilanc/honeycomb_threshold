@@ -9,7 +9,7 @@ from honeycomb_circuit import generate_honeycomb_circuit
 @pytest.mark.parametrize('tile_diam,sub_rounds,style', itertools.product(
     range(1, 5),
     range(1, 24),
-    ["3step_demolition", "6step_cnot", "3step_inline"],
+    ["PC3", "SD6", "EM3"],
 ) if internal_decoder_path() is not None else [])
 def test_internal_decoder_actually_runs(tile_diam: int, sub_rounds: int, style: str):
     sample_decode_count_correct(
