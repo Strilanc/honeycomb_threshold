@@ -21,11 +21,6 @@ def test_circuit_has_decomposing_error_model(tile_diam: int, sub_rounds: int, st
     _ = circuit.detector_error_model(decompose_errors=True)
 
 
-xxx = stim.Circuit.__repr__
-stim.Circuit.__repr__ = lambda e: xxx(e)
-
-
-
 def test_circuit_details_SD6():
     actual = generate_honeycomb_circuit(
         tile_diam=1,
