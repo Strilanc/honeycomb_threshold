@@ -1,8 +1,8 @@
 import pytest
 
-from experiment import RecordedExperimentData, total_error_to_per_round_error
 import numpy as np
 
+from plotting import total_error_to_per_round_error, RecordedExperimentData
 from probability_util import log_binomial
 
 
