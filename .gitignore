@@ -6,3 +6,6 @@ internal_decoder.binary
 **/repro.*
 **/data/*
 **/gen/*
+*.png
+*.csv
+*.pdf

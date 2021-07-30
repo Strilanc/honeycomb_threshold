@@ -69,10 +69,12 @@ def noisify_concat_moments(*, lay: HoneycombLayout, moments: List[Union[NoiseAdd
                 handled = True
             if not handled:
                 raise NotImplementedError(op.name)
-        result += pre
+        if lay.noise > 0:
+            result += pre
         result += moment_circuit
-        result += post
-        if idle:
+        if lay.noise > 0:
+            result += post
+        if idle and lay.noise > 0:
             result.append_operation("DEPOLARIZE1", sorted(idle), lay.noise)
 
     if end_tick:
@@ -289,7 +291,8 @@ def generate_rounds_3step_inline(lay: HoneycombLayout, mtrack: MeasurementTracke
         basis = lay.sub_round_edge_basis(k)
         tp = [stim.target_x, stim.target_y, stim.target_z]["XYZ".index(basis)]
         circuit = stim.Circuit()
-        circuit.append_operation("DEPOLARIZE2", [lay.q2i[q] for e in edges for q in [e.left, e.right]], lay.noise)
+        if lay.noise > 0:
+            circuit.append_operation("DEPOLARIZE2", [lay.q2i[q] for e in edges for q in [e.left, e.right]], lay.noise)
         circuit.append_operation("MPP", [t for e in edges for t in [tp(lay.q2i[e.left]), stim.target_combiner(), tp(lay.q2i[e.right])]], lay.noise)
         circuit += _sub_round_measurements_and_detectors(lay, mtrack, k, measurement_op=None)
         moments.append(NoiseAddedAlready(circuit, skip_tick=False))

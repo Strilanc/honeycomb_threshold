@@ -1,6 +1,7 @@
 import csv
 import math
 import pathlib
+import time
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Sequence, Optional
 
@@ -12,7 +13,7 @@ from honeycomb_layout import HoneycombLayout
 from probability_util import log_binomial, binary_search
 
 
-CSV_HEADER = "tile_diam,sub_rounds,physical_error_rate,circuit_style,num_shots,num_correct"
+CSV_HEADER = "tile_diam,sub_rounds,physical_error_rate,circuit_style,num_shots,num_correct,total_processing_seconds"
 
 
 def collect_simulated_experiment_data(*cases: HoneycombLayout,
@@ -66,6 +67,7 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
         num_next_shots = min_shots
         total_shots = 0
         while True:
+            t0 = time.monotonic()
             circuit = generate_honeycomb_circuit(
                 tile_diam=lay.tile_diam,
                 sub_rounds=lay.sub_rounds,
@@ -77,8 +79,8 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
                 circuit=circuit,
                 use_internal_decoder=use_internal_decoder,
             )
-
-            record = f"{lay.tile_diam},{lay.sub_rounds},{lay.noise},{lay.style},{num_next_shots},{num_correct}"
+            t1 = time.monotonic()
+            record = f"{lay.tile_diam},{lay.sub_rounds},{lay.noise},{lay.style},{num_next_shots},{num_correct},{t1 - t0}"
             with open(out_path, "a") as f:
                 print(record, file=f)
             print(record)
@@ -200,11 +202,11 @@ def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: boo
     ax.set_yticks([y for y in ticks_y])
     ax.set_xticklabels([format_tick(x) for x in ticks_x], rotation=45)
     ax.set_yticklabels([format_tick(y) for y in ticks_y])
-    ax.set_xlim(0.0001, 0.5)
-    ax.set_ylim(0.0000001, 0.5)
+    ax.set_xlim(1e-4, 0.5)
+    ax.set_ylim(1e-8, 0.5)
     ax.set_title(title)
-    ax.set_ylabel("Logical Error Rate (Vertical Observable)")
-    ax.set_xlabel("Physical Error Rate Parameter")
+    ax.set_ylabel("Per-Sub-Round Logical Error Rate (Vertical Observable)")
+    ax.set_xlabel("Physical Error Rate Parameter (p)")
     ax.grid()
     if out_path is not None:
         fig.tight_layout()

@@ -17,15 +17,15 @@ def main():
                 sub_rounds=30,
                 style="6step_cnot",
             )
-            for d in [1, 2, 3, 4, 5, 6, 7, 8, 9]
             for p in np.geomspace(start=1e-4, stop=5e-2, num=10)
+            for d in [1, 2, 3, 4, 5, 6, 7, 8, 9]
         ],
         out_path="data/6step_cnot.csv",
         discard_previous_data=True,
-        min_shots=10**4,
-        max_shots=10**7,
+        min_shots=10**3,
+        max_shots=10**6,
         max_sample_std_dev=1e-2,
-        min_seen_logical_errors=10**3,
+        min_seen_logical_errors=10**2,
         use_internal_decoder=True,
     )
 

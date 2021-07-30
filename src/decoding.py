@@ -44,7 +44,7 @@ def sample_decode_count_correct(*,
 
     # Count how many solutions were completely correct.
     assert predictions.shape == obs_samples.shape
-    all_corrects = np.count_nonzero(predictions ^ obs_samples, axis=1) == 0
+    all_corrects = np.all(predictions == obs_samples, axis=1)
     return np.count_nonzero(all_corrects)
 
 
