@@ -55,6 +55,7 @@ def generate_honeycomb_circuit(tile_diam: int,
     for sub_round in range(3):
         # Z edges start in a known state.
         mtrack.add_dummies(*lay.round_edges(sub_round), obstacle=sub_round != 2)
+        mtrack.add_dummies(*[('1/2', e) for e in lay.round_edges(sub_round)])
         # Z stabilizers start in a known state.
         mtrack.add_dummies(*lay.round_hex_centers(sub_round), obstacle=sub_round != 2)
         # Y stabilizers start half formed (have Z part but not X part).
@@ -78,7 +79,14 @@ def generate_honeycomb_circuit(tile_diam: int,
 
     # Perform the fault tolerant data measurement.
     obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
-    result.append_operation("M" + obs_basis * off_basis_measure, lay.data_qubit_indices)
+    if off_basis_measure:
+        if obs_basis == "X":
+            result.append_operation("H", lay.data_qubit_indices)
+            result.append_operation("TICK", [])
+        elif obs_basis == "Y":
+            result.append_operation("H_YZ", lay.data_qubit_indices)
+            result.append_operation("TICK", [])
+    result.append_operation("M", lay.data_qubit_indices)
     mtrack.add_measurements(*lay.data_qubit_coords)
 
     last_measure_basis = "XYZ"[(sub_rounds - 1) % 3]
@@ -207,15 +215,17 @@ def generate_rounds_pc3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
             circuit.append_operation(lay.sub_round_edge_basis(k - 1) + "CX",
                                      [lay.q2i[q] for e in lay.round_edges(k - 1) for q in [e.right, e.center]])
         if 0 <= k - 2 < n:
-            circuit += _sub_round_measurements_and_detectors(lay, mtrack, k - 2, measurement_op="MR")
+            circuit += _sub_round_measurements_and_detectors(lay, mtrack, k - 2, measurement_op="M", lookback=2, include_obs=False)
         elif k - 2 <= 0:
             circuit += _sub_round_resets(lay, k - 2)
         circuit.append_operation("TICK", [])
         moments.append(circuit)
         k += 1
 
-        # Steady state starts on round 6 and has period 3. Once we get to 9 we've got the whole loop.
-        if k == 9:
+        # Stabilizers are established by round 6.
+        # The edge comparisons across rounds, used to get the stabilizers, are established by 9.
+        # The repeating state has period 3; by round 12 we've got the whole loop.
+        if k == 12:
             iterations = (n - k + 3) // 3
             if iterations > 1:
                 moments[-3:] = [(moments[-3] + moments[-2] + moments[-1]) * iterations]
@@ -224,6 +234,20 @@ def generate_rounds_pc3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
     result = stim.Circuit()
     for m in moments:
         result += m
+
+    for k in range(3):
+        es = mtrack.get_record_targets(*(
+                    ('1/2', e)
+                    for e in (set(lay.obs_1_edges) & set(lay.round_edges(k)))
+            ))
+        if es is None:
+            continue
+        result.append_operation(
+            "OBSERVABLE_INCLUDE",
+            es,
+            0,
+        )
+
     return result
 
 
@@ -309,30 +333,35 @@ def _sub_round_measurements_and_detectors(
         lay: HoneycombLayout,
         mtrack: MeasurementTracker,
         sub_round: int,
-        measurement_op: Optional[str] = "M") -> stim.Circuit:
+        measurement_op: Optional[str] = "M",
+        lookback: int = 1,
+        include_obs: bool = True) -> stim.Circuit:
     """Returns a circuit performing one layer of edge measurements from the honeycomb code."""
 
     round_edges = lay.round_edges(sub_round)
     moment = stim.Circuit()
     if measurement_op is not None:
         moment.append_operation(measurement_op, [lay.q2i[edge.center] for edge in round_edges])
-    mtrack.add_measurements(*round_edges)
+    mtrack.add_measurements(*(('1/2', e) for e in round_edges))
+    for e in round_edges:
+        mtrack.add_group(*[Prev(('1/2', e), offset=t) for t in range(lookback)], group_key=e)
 
     # Multiply edge measurements along the observable's path into the observable.
-    moment.append_operation(
-        "OBSERVABLE_INCLUDE",
-        mtrack.get_record_targets(*(
-                set(lay.obs_1_edges) & set(lay.round_edges(sub_round))
-        )),
-        0,
-    )
+    if include_obs:
+        moment.append_operation(
+            "OBSERVABLE_INCLUDE",
+            mtrack.get_record_targets(*(
+                    set(lay.obs_1_edges) & set(lay.round_edges(sub_round))
+            )),
+            0,
+        )
 
     # Edges from this round form half of the edges for the spoke-center hexes from last round.
     for h in lay.round_hex_centers((sub_round - 1) % 3):
         mtrack.add_group(*lay.first_edges_around_hex(h), group_key=('1/2', h))
     # Edges from this round complete the stabilizer for the spoke-center hexes from two rounds ago.
     for h in lay.round_hex_centers((sub_round - 2) % 3):
-        mtrack.add_group(('1/2', h), *lay.second_edges_around_hex(h), group_key=h)
+        mtrack.add_group(*lay.second_edges_around_hex(h), ('1/2', h), group_key=h)
         mtrack.append_detector(h, Prev(h), out_circuit=moment, coords=[h.real, h.imag, 0])
     moment.append_operation("SHIFT_COORDS", [], [0, 0, 1])
 

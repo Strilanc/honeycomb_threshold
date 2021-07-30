@@ -14,7 +14,7 @@ def assert_same_diagram(actual, expected):
         assert False, "Actual:\n.\n" + s1 + "\n.\nExpected:\n.\n" + s2 + "\n.\nDIFF:\n\n" + cirq.testing.highlight_text_differences(s1, s2)
 
 
-def test_plot_six_cycle():
+def test_plot_SD6():
     assert_same_diagram(plot_circuit(generate_honeycomb_circuit(
         noise=0.001,
         tile_diam=1,
@@ -61,7 +61,7 @@ def test_plot_six_cycle():
     """)
 
 
-def test_plot_three_cycle():
+def test_plot_PC3():
     assert_same_diagram(plot_circuit(generate_honeycomb_circuit(
         noise=0.001,
         tile_diam=1,
@@ -70,31 +70,31 @@ def test_plot_three_cycle():
     ), only_repeat_block=True), r"""
                                                 ~
                          ~                      |
-                        D|                      X                       X ~
-                         X                       X                      |D|
-                          X                      |D                     | X
+                        M|                      X                       X ~
+                         X                       X                      |M|
+                          X                      |M                     | X
                           |                      |                      |
                           |                      |                      |
-            X     X-----@ |   X-----X     D     @+----X     X-----X     @     D
-          ~-+Y     D     X+----X     Y-----X     X     D     Y     X-----X     X--~
-            | @-----X     Y     D     @     X-----Y     X----+@     D     Y-----X
+            X     X-----@ |   X-----X     M     @+----X     X-----X     @     M
+          ~-+Y     M     X+----X     Y-----X     X     M     Y     X-----X     X--~
+            | @-----X     Y     M     @     X-----Y     X----+@     M     Y-----X
             |                         |                      |
             |                         |                      |
-            X                       X |                     D|
-             X                      |D|                      X
-             |D                     | X                       X
+            X                       X |                     M|
+             X                      |M|                      X
+             |M                     | X                       X
              |                      |                         |
              |                      |                         |
-            @+----X     X-----X     @     D     X     X-----@ |   X-----X     D
-             X     D     Y     X-----X     X----+Y     D     X+----X     Y-----X
-           ~--Y     X----+@     D     Y-----X   | @-----X     Y     D     @     X--~
+            @+----X     X-----X     @     M     X     X-----@ |   X-----X     M
+             X     M     Y     X-----X     X----+Y     M     X+----X     Y-----X
+           ~--Y     X----+@     M     Y-----X   | @-----X     Y     M     @     X--~
                          |                      ~                         |
                          ~                                                |
                                                                           ~
     """)
 
 
-def test_plot_three_cycle_inline():
+def test_plot_EM3():
     assert_same_diagram(plot_circuit(generate_honeycomb_circuit(
         noise=0.001,
         tile_diam=2,

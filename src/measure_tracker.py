@@ -15,6 +15,9 @@ class Prev:
             self.offset += v.offset
             self.v = v.v
 
+    def __repr__(self):
+        return f"Prev({self.v!r}, offset={self.offset!r})"
+
 
 class MeasurementTracker:
     """Tracks measurements and groups of measurements, for producing stim record targets."""

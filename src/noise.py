@@ -5,8 +5,8 @@ import stim
 
 ANY_CLIFFORD_1_OPS = {"C_XYZ", "H", "H_YZ"}
 ANY_CLIFFORD_2_OPS = {"CX", "XCX", "YCX", "CZ", "CY", "YCX", "YCY"}
-RESET_OPS = {"R", "RX", "RY", "MR", "MRX", "MRY"}
-MEASURE_OPS = {"M", "MX", "MY", "MR", "MRX", "MRY"}
+RESET_OPS = {"R", "RX", "RY"}
+MEASURE_OPS = {"M", "MX", "MY"}
 ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
 
 @dataclasses.dataclass(frozen=True)
@@ -40,11 +40,6 @@ class NoiseModel:
             noisy_gates={
                 "R": p,
                 "M": p,
-                "MX": p,
-                "MY": p,
-                "MR": p,
-                "MRX": p,
-                "MRY": p,
             },
         )
 
@@ -53,11 +48,10 @@ class NoiseModel:
         return NoiseModel(
             idle=p,
             measure_reset_idle=0,
+            any_clifford_1=p,
             noisy_gates={
                 "R": p,
                 "M": p,
-                "MY": p,
-                "MX": p,
                 "MPP": p,
             },
         )
