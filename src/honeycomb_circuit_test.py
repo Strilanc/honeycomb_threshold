@@ -6,14 +6,20 @@ from honeycomb_circuit import generate_honeycomb_circuit
 from hack_pycharm_pybind_pytest_workaround import stim
 
 
-@pytest.mark.parametrize('tile_diam,sub_rounds,style', itertools.product(
+@pytest.mark.parametrize('tile_width,tile_height_extra,sub_rounds,style', itertools.product(
     range(1, 5),
+    range(2),
     range(1, 24),
     ["PC3", "SD6", "EM3"],
 ))
-def test_circuit_has_decomposing_error_model(tile_diam: int, sub_rounds: int, style: str):
+def test_circuit_has_decomposing_error_model(
+        tile_width: int,
+        tile_height_extra: int,
+        sub_rounds: int,
+        style: str):
     circuit = generate_honeycomb_circuit(
-        tile_diam=tile_diam,
+        tile_width=tile_width,
+        tile_height=tile_width + tile_height_extra,
         sub_rounds=sub_rounds,
         noise=0.001,
         style=style,
@@ -23,7 +29,8 @@ def test_circuit_has_decomposing_error_model(tile_diam: int, sub_rounds: int, st
 
 def test_circuit_details_SD6():
     actual = generate_honeycomb_circuit(
-        tile_diam=1,
+        tile_width=1,
+        tile_height=1,
         sub_rounds=1003,
         noise=0.001,
         style="SD6",
@@ -270,7 +277,8 @@ def test_circuit_details_SD6():
 
 def test_circuit_details_PC3():
     actual = generate_honeycomb_circuit(
-        tile_diam=1,
+        tile_width=1,
+        tile_height=1,
         sub_rounds=1003,
         noise=0.001,
         style="PC3",
@@ -475,7 +483,8 @@ def test_circuit_details_PC3():
 
 def test_circuit_details_EM3():
     actual = generate_honeycomb_circuit(
-        tile_diam=1,
+        tile_width=1,
+        tile_height=1,
         sub_rounds=1003,
         noise=0.001,
         style="EM3",

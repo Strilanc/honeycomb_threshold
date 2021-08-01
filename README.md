@@ -34,12 +34,13 @@ collect_simulated_experiment_data(
     *[
         HoneycombLayout(
             noise=p,
-            tile_diam=d,
+            tile_width=d,
+            tile_height=d,
             sub_rounds=30,
             style="SD6",
         )
         for d in [2, 3, 4]
-        for p in np.geomspace(start=5e-4, stop=3e-3, num=5)
+        for p in [0.001, 0.002, 0.003]
     ],
     out_path="test.csv",
     discard_previous_data=True,

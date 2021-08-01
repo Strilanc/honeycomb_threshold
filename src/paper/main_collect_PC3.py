@@ -11,7 +11,8 @@ def main():
         *[
             HoneycombLayout(
                 noise=p,
-                tile_diam=d,
+                tile_width=d,
+                tile_height=d,
                 sub_rounds=d * 6,
                 style="PC3",
             )

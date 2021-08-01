@@ -15,7 +15,8 @@ def test_internal_decoder_actually_runs(tile_diam: int, sub_rounds: int, style: 
     sample_decode_count_correct(
         num_shots=100,
         circuit=generate_honeycomb_circuit(
-            tile_diam=tile_diam,
+            tile_width=tile_diam,
+            tile_height=tile_diam,
             sub_rounds=sub_rounds,
             noise=0.001,
             style=style,

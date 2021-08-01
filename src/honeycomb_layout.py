@@ -72,8 +72,26 @@ SECOND_EDGES_AROUND_HEX: List[Tuple[complex, complex]] = [
 
 
 class HoneycombLayout:
-    def __init__(self, tile_diam: int, sub_rounds: int, noise: float, style: str):
-        self.tile_diam = tile_diam
+    """Computes information about the honeycomb code layout, such as hex face locations."""
+
+    def __init__(self,
+                 tile_width: int,
+                 tile_height: int,
+                 sub_rounds: int,
+                 noise: float,
+                 style: str):
+        """
+        Args:
+            tile_width: The number of times to horizontally repeat the tiling unit of the code.
+            tile_height: The number of times to vertically repeat the tiling unit of the code.
+            sub_rounds: The number of edge parity measurements to perform (counting X, Y, and Z
+                separately).
+            noise: Determines the strength of noisy operations, relative to the error model.
+            style: Determines details of the circuit layout and the error model used. Valid values are
+                "SD6", "EM3", "CP3", and "SI7".
+        """
+        self.tile_width = tile_width
+        self.tile_height = tile_height
         self.sub_rounds = sub_rounds
         self.noise = noise
         self.style = style
@@ -143,7 +161,7 @@ class HoneycombLayout:
         c, = set(obs_pattern) - {'_'}
         return c, [
             q
-            for c, q in zip(obs_pattern * self.tile_diam * 2, self.obs_1_qubits)
+            for c, q in zip(obs_pattern * self.tile_height * 2, self.obs_1_qubits)
             if c != "_"
         ]
 
@@ -187,11 +205,11 @@ class HoneycombLayout:
 
     @functools.cached_property
     def coord_width(self) -> float:
-        return 4.0 * self.tile_diam
+        return 4.0 * self.tile_width
 
     @functools.cached_property
     def coord_height(self) -> float:
-        return 6.0 * self.tile_diam
+        return 6.0 * self.tile_height
 
     @functools.lru_cache(maxsize=3)
     def round_hex_centers(self, r: int) -> Tuple[complex, ...]:
@@ -235,8 +253,8 @@ class HoneycombLayout:
     def _hex_center_categories(self) -> Dict[complex, int]:
         """Generate and categorize the hexes defining the circuit."""
         result: Dict[complex, int] = {}
-        for row in range(3 * self.tile_diam):
-            for col in range(2 * self.tile_diam):
+        for row in range(3 * self.tile_height):
+            for col in range(2 * self.tile_width):
                 center = row * 2j + 2 * col - 1j * (col % 2)
                 category = (-row - col % 2) % 3
                 result[self.wrap(center)] = category

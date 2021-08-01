@@ -1,5 +1,4 @@
-import dataclasses
-from typing import List, Sequence, Tuple, Union, Optional
+from typing import List, Tuple, Optional
 
 import stim
 
@@ -8,7 +7,8 @@ from measure_tracker import MeasurementTracker, Prev
 from noise import NoiseModel
 
 
-def generate_honeycomb_circuit(tile_diam: int,
+def generate_honeycomb_circuit(tile_width: int,
+                               tile_height: int,
                                sub_rounds: int,
                                noise: float,
                                style: str,
@@ -17,13 +17,23 @@ def generate_honeycomb_circuit(tile_diam: int,
 
     Performs fault tolerant initialization, idling, and measurement.
 
+    Args:
+        tile_width: The number of times to horizontally repeat the tiling unit of the code.
+        tile_height: The number of times to vertically repeat the tiling unit of the code.
+        sub_rounds: The number of edge parity measurements to perform (counting X, Y, and Z
+            separately).
+        noise: Determines the strength of noisy operations, relative to the error model.
+        style: Determines details of the circuit layout and the error model used. Valid values are
+            "SD6", "EM3", "CP3", and "SI7".
+
     Reference:
         "Dynamically Generated Logical Qubits"
         Matthew B. Hastings, Jeongwan Haah
         https://arxiv.org/abs/2107.02194
     """
     lay = HoneycombLayout(
-        tile_diam=tile_diam,
+        tile_width=tile_width,
+        tile_height=tile_height,
         sub_rounds=sub_rounds,
         noise=noise,
         style=style,
