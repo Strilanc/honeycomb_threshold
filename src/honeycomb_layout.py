@@ -4,6 +4,8 @@ import functools
 from dataclasses import dataclass
 from typing import List, Dict, Iterable, Tuple
 
+from noise import NoiseModel
+
 
 def _data_qubit_parity(q: complex) -> bool:
     """To optimally interleave operations, it's useful to split into a checkerboard pattern."""
@@ -79,7 +81,9 @@ class HoneycombLayout:
                  tile_height: int,
                  sub_rounds: int,
                  noise: float,
-                 style: str):
+                 style: str,
+                 v_obs: bool,
+                 h_obs: bool):
         """
         Args:
             tile_width: The number of times to horizontally repeat the tiling unit of the code.
@@ -95,6 +99,18 @@ class HoneycombLayout:
         self.sub_rounds = sub_rounds
         self.noise = noise
         self.style = style
+        self.v_obs = v_obs
+        self.h_obs = h_obs
+
+    @functools.cached_property
+    def noise_model(self) -> NoiseModel:
+        if self.style == "SD6":
+            return NoiseModel.SD6(self.noise)
+        if self.style == "PC3":
+            return NoiseModel.PC3(self.noise)
+        if self.style == "EM3":
+            return NoiseModel.EM3(self.noise)
+        raise NotImplementedError(self.style)
 
     def wrap(self, c: complex) -> complex:
         r = c.real % self.coord_width
@@ -144,7 +160,35 @@ class HoneycombLayout:
             for sign in [-1, +1]
         ))
 
-    def obs_1_before_sub_round(self, sub_round: int) -> Tuple[str, List[complex]]:
+    def obs_h_before_sub_round(self, sub_round: int) -> Tuple[str, List[complex]]:
+        case = sub_round % 6
+        if case == 0:
+            obs_pattern = "XXXX"
+        elif case == 1:
+            obs_pattern = "X__X"
+        elif case == 2:
+            obs_pattern = "Z__Z"
+        elif case == 3:
+            obs_pattern = "_ZZ_"
+        elif case == 4:
+            obs_pattern = "_YY_"
+        else:
+            obs_pattern = "YYYY"
+        c, = set(obs_pattern) - {'_'}
+        return c, [
+            q
+            for c, q in zip(obs_pattern * self.tile_height, self.obs_h_qubits)
+            if c != "_"
+        ]
+
+    def obs_before_sub_round(self, sub_round: int) -> Tuple[str, List[complex]]:
+        assert self.v_obs != self.h_obs
+        if self.v_obs:
+            return self.obs_v_before_sub_round(sub_round)
+        else:
+            return self.obs_h_before_sub_round(sub_round)
+
+    def obs_v_before_sub_round(self, sub_round: int) -> Tuple[str, List[complex]]:
         case = sub_round % 6
         if case == 0:
             obs_pattern = "_ZZ"
@@ -161,7 +205,7 @@ class HoneycombLayout:
         c, = set(obs_pattern) - {'_'}
         return c, [
             q
-            for c, q in zip(obs_pattern * self.tile_height * 2, self.obs_1_qubits)
+            for c, q in zip(obs_pattern * self.tile_height * 2, self.obs_v_qubits)
             if c != "_"
         ]
 
@@ -194,6 +238,16 @@ class HoneycombLayout:
         return tuple(self.q2i[q] for q in self.data_qubit_coords)
 
     @functools.cached_property
+    def used_qubit_coords(self) -> Tuple[complex, ...]:
+        if self.style == "EM3":
+            return self.data_qubit_coords
+        return tuple(self.q2i.keys())
+
+    @functools.cached_property
+    def used_qubit_indices(self) -> Tuple[int, ...]:
+        return tuple(self.q2i[q] for q in self.used_qubit_coords)
+
+    @functools.cached_property
     def q2i(self) -> Dict[complex, int]:
         return {
             q: i
@@ -221,7 +275,23 @@ class HoneycombLayout:
         ))
 
     @functools.cached_property
-    def obs_1_edges(self) -> Tuple[Edge]:
+    def obs_h_edges(self) -> Tuple[Edge]:
+        return tuple(sorted([
+            e
+            for e in self.all_edges
+            if e.left.imag in [0, 1] and e.right.imag in [0, 1]
+        ], key=lambda e: (e.center.real, e.center.imag)))
+
+    @functools.cached_property
+    def obs_h_qubits(self) -> Tuple[complex]:
+        return tuple(sorted((
+            q
+            for q in self.data_qubit_coords
+            if q.imag in [0, 1]
+        ), key=lambda q: (q.real, (1 + q.imag + q.real // 2) % 2)))
+
+    @functools.cached_property
+    def obs_v_edges(self) -> Tuple[Edge]:
         return tuple(sorted([
             e
             for e in self.all_edges
@@ -229,12 +299,36 @@ class HoneycombLayout:
         ], key=lambda e: (e.center.real, e.center.imag)))
 
     @functools.cached_property
-    def obs_1_qubits(self) -> Tuple[complex]:
+    def obs_v_qubits(self) -> Tuple[complex]:
         return tuple(sorted_complex(
             q
             for q in self.data_qubit_coords
             if q.real == 1
         ))
+
+    @functools.cached_property
+    def obs_index(self) -> int:
+        assert self.v_obs != self.h_obs
+        if self.v_obs:
+            return 0
+        else:
+            return 1
+
+    @functools.cached_property
+    def obs_edges(self) -> Tuple[Edge]:
+        assert self.v_obs != self.h_obs
+        if self.v_obs:
+            return self.obs_v_edges
+        else:
+            return self.obs_h_edges
+
+    @functools.cached_property
+    def obs_qubits(self) -> Tuple[complex]:
+        assert self.v_obs != self.h_obs
+        if self.v_obs:
+            return self.obs_v_qubits
+        else:
+            return self.obs_h_qubits
 
     @functools.cached_property
     def all_edges(self) -> Tuple[Edge, ...]:

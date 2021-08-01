@@ -61,13 +61,7 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
         total_shots = 0
         while True:
             t0 = time.monotonic()
-            circuit = generate_honeycomb_circuit(
-                tile_width=lay.tile_width,
-                tile_height=lay.tile_height,
-                sub_rounds=lay.sub_rounds,
-                noise=lay.noise,
-                style=lay.style,
-            )
+            circuit = generate_honeycomb_circuit(lay)
             num_correct = sample_decode_count_correct(
                 num_shots=num_next_shots,
                 circuit=circuit,

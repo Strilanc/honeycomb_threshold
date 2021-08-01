@@ -3,7 +3,7 @@ from typing import Optional, Dict, Set, Tuple
 
 import stim
 
-ANY_CLIFFORD_1_OPS = {"C_XYZ", "H", "H_YZ"}
+ANY_CLIFFORD_1_OPS = {"C_XYZ", "C_ZYX", "H", "H_YZ", "I"}
 ANY_CLIFFORD_2_OPS = {"CX", "XCX", "YCX", "CZ", "CY", "YCX", "YCY"}
 RESET_OPS = {"R", "RX", "RY"}
 MEASURE_OPS = {"M", "MX", "MY"}

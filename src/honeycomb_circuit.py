@@ -1,105 +1,87 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 import stim
 
 from honeycomb_layout import HoneycombLayout
 from measure_tracker import MeasurementTracker, Prev
-from noise import NoiseModel
 
 
-def generate_honeycomb_circuit(tile_width: int,
-                               tile_height: int,
-                               sub_rounds: int,
-                               noise: float,
-                               style: str,
-                               ) -> stim.Circuit:
+def generate_honeycomb_circuit(lay: HoneycombLayout) -> stim.Circuit:
     """Generates a honeycomb code circuit performing a fault tolerant memory experiment.
 
     Performs fault tolerant initialization, idling, and measurement.
 
     Args:
-        tile_width: The number of times to horizontally repeat the tiling unit of the code.
-        tile_height: The number of times to vertically repeat the tiling unit of the code.
-        sub_rounds: The number of edge parity measurements to perform (counting X, Y, and Z
-            separately).
-        noise: Determines the strength of noisy operations, relative to the error model.
-        style: Determines details of the circuit layout and the error model used. Valid values are
-            "SD6", "EM3", "CP3", and "SI7".
+        lay: Configuration information for the circuit.
 
     Reference:
         "Dynamically Generated Logical Qubits"
         Matthew B. Hastings, Jeongwan Haah
         https://arxiv.org/abs/2107.02194
     """
-    lay = HoneycombLayout(
-        tile_width=tile_width,
-        tile_height=tile_height,
-        sub_rounds=sub_rounds,
-        noise=noise,
-        style=style,
-    )
     mtrack = MeasurementTracker()
 
     # Annotate the locations of qubits used by the circuit.
     result = stim.Circuit()
-    if style == "EM3":
-        used_qubits = lay.data_qubit_indices
-        for q in lay.data_qubit_coords:
-            i = lay.q2i[q]
-            result.append_operation("QUBIT_COORDS", [i], [q.real, q.imag])
+    for q in lay.used_qubit_coords:
+        i = lay.q2i[q]
+        result.append_operation("QUBIT_COORDS", [i], [q.real, q.imag])
+
+    result += fault_tolerant_init(lay, mtrack)
+    if lay.style == "SD6":
+        result += generate_rounds_sd6(lay, mtrack)
+    elif lay.style == "PC3":
+        result += generate_rounds_pc3(lay, mtrack)
+    elif lay.style == "EM3":
+        result += generate_rounds_em3(lay, mtrack)
     else:
-        used_qubits = list(lay.q2i.values())
-        for q, i in lay.q2i.items():
-            result.append_operation("QUBIT_COORDS", [i], [q.real, q.imag])
+        raise NotImplementedError(lay.style)
+    result += fault_tolerant_measurement(lay, mtrack)
+
+    return lay.noise_model.noisy_circuit(result)
 
 
-    # Initialize data.
-    if style == "EM3":
-        result.append_operation("R", used_qubits)
-    else:
-        result.append_operation("R", used_qubits)
+def fault_tolerant_init(lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
+    result = stim.Circuit()
+    result.append_operation("R", lay.used_qubit_indices)
     result.append_operation("TICK", [])
+
+    init_basis = lay.obs_before_sub_round(0)[0]
+    if init_basis != "Z":
+        # if lay.style == "SD6":
+        #     result.append_operation(f"H_YZ", lay.data_qubit_indices)
+        # else:
+        result.append_operation(f"H_{init_basis}Z", lay.data_qubit_indices)
+        result.append_operation("TICK", [])
+    v2 = "XYZ".index(init_basis)
+    v1 = (v2 - 1) % 3
 
     # Create dummy stabilizer records to compare against during initial rounds.
     # Then run enough rounds to ensure later measurements aren't comparing to dummies anymore.
     for sub_round in range(3):
         # Z edges start in a known state.
-        mtrack.add_dummies(*lay.round_edges(sub_round), obstacle=sub_round != 2)
+        mtrack.add_dummies(*lay.round_edges(sub_round), obstacle=sub_round != v2)
         mtrack.add_dummies(*[('1/2', e) for e in lay.round_edges(sub_round)])
         # Z stabilizers start in a known state.
-        mtrack.add_dummies(*lay.round_hex_centers(sub_round), obstacle=sub_round != 2)
+        mtrack.add_dummies(*lay.round_hex_centers(sub_round), obstacle=sub_round != v2)
         # Y stabilizers start half formed (have Z part but not X part).
-        mtrack.add_dummies(*[('1/2', h) for h in lay.round_hex_centers(sub_round)], obstacle=sub_round != 1)
+        mtrack.add_dummies(*[('1/2', h) for h in lay.round_hex_centers(sub_round)], obstacle=sub_round != v1)
 
-    # Use a loop to advance the steady state as close as possible to the end.
-    if lay.style == "SD6":
-        result += generate_rounds_sd6(lay, mtrack)
-        off_basis_measure = False
-        noise = NoiseModel.SD6(lay.noise)
-    elif lay.style == "PC3":
-        result += generate_rounds_pc3(lay, mtrack)
-        off_basis_measure = True
-        noise = NoiseModel.PC3(lay.noise)
-    elif lay.style == "EM3":
-        result += generate_rounds_em3(lay, mtrack)
-        off_basis_measure = True
-        noise = NoiseModel.EM3(lay.noise)
-    else:
-        raise NotImplementedError(lay.style)
+    return  result
+
+
+def fault_tolerant_measurement(lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
+    result = stim.Circuit()
 
     # Perform the fault tolerant data measurement.
-    obs_basis, obs_qubits = lay.obs_1_before_sub_round(sub_rounds)
-    if off_basis_measure:
-        if obs_basis == "X":
-            result.append_operation("H", lay.data_qubit_indices)
-            result.append_operation("TICK", [])
-        elif obs_basis == "Y":
-            result.append_operation("H_YZ", lay.data_qubit_indices)
-            result.append_operation("TICK", [])
+    obs_basis, obs_qubits = lay.obs_before_sub_round(lay.sub_rounds)
+    if obs_basis != "Z":
+        result.append_operation(f"H_{obs_basis}Z", lay.data_qubit_indices)
+        result.append_operation("TICK", [])
     result.append_operation("M", lay.data_qubit_indices)
     mtrack.add_measurements(*lay.data_qubit_coords)
 
-    last_measure_basis = "XYZ"[(sub_rounds - 1) % 3]
+    last_measure_basis = "XYZ"[(lay.sub_rounds - 1) % 3]
     if last_measure_basis == obs_basis:
         # Compare data measurements to same-basis edge measurements from last round.
         for e in lay.round_edges("XYZ".index(obs_basis)):
@@ -132,9 +114,9 @@ def generate_honeycomb_circuit(tile_width: int,
     result.append_operation(
         "OBSERVABLE_INCLUDE",
         mtrack.get_record_targets(*obs_qubits),
-        0)
+        lay.obs_index)
 
-    return noise.noisy_circuit(result)
+    return result
 
 
 def generate_rounds_sd6(lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
@@ -151,7 +133,7 @@ def generate_rounds_sd6(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
         result.append_operation("TICK", [])
         result += _sub_round_2q_ops(lay, 0)[1]
         result.append_operation("TICK", [])
-        result += _sub_round_measurements_and_detectors(lay, mtrack, 0)
+        result += _sub_round_measurements_and_detectors(lay=lay, mtrack=mtrack, sub_round=0)
     else:
         # Get the pipeline started.
         result += _sub_round_resets(lay, 0)
@@ -194,16 +176,18 @@ def generate_rounds_sd6(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
         a3, b3 = _sub_round_2q_ops(lay, n - 1)
         result += a3 + b2
         result.append_operation("TICK", [])
-        result +=  _sub_round_measurements_and_detectors(lay, mtrack, n - 2)
+        result += _sub_round_measurements_and_detectors(lay=lay, mtrack=mtrack, sub_round=n - 2)
         result.append_operation("TICK", [])
         result += _cycle_data(lay, False, True)
         result.append_operation("TICK", [])
         result += b3
         result.append_operation("TICK", [])
-        result += _sub_round_measurements_and_detectors(lay, mtrack, n - 1)
+        result += _sub_round_measurements_and_detectors(lay=lay, mtrack=mtrack, sub_round=n - 1)
 
-    obs_basis, obs_qubits = lay.obs_1_before_sub_round(lay.sub_rounds)
-    if obs_basis != lay.sub_round_edge_basis(lay.sub_rounds - 1):
+    if (lay.sub_rounds + 1) % 3 == 0:
+        result.append_operation("C_ZYX", lay.data_qubit_indices)
+    elif (lay.sub_rounds + 2) % 3 == 0:
+        # C_XYZ because C_ZYX**2 == C_XYZ
         result.append_operation("C_XYZ", lay.data_qubit_indices)
     result.append_operation("TICK", [])
 
@@ -225,7 +209,7 @@ def generate_rounds_pc3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
             circuit.append_operation(lay.sub_round_edge_basis(k - 1) + "CX",
                                      [lay.q2i[q] for e in lay.round_edges(k - 1) for q in [e.right, e.center]])
         if 0 <= k - 2 < n:
-            circuit += _sub_round_measurements_and_detectors(lay, mtrack, k - 2, measurement_op="M", lookback=2, include_obs=False)
+            circuit += _sub_round_measurements_and_detectors(lay=lay, mtrack=mtrack, sub_round=k - 2)
         elif k - 2 <= 0:
             circuit += _sub_round_resets(lay, k - 2)
         circuit.append_operation("TICK", [])
@@ -246,17 +230,16 @@ def generate_rounds_pc3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
         result += m
 
     for k in range(3):
-        es = mtrack.get_record_targets(*(
-                    ('1/2', e)
-                    for e in (set(lay.obs_1_edges) & set(lay.round_edges(k)))
-            ))
-        if es is None:
-            continue
-        result.append_operation(
-            "OBSERVABLE_INCLUDE",
-            es,
-            0,
-        )
+        edges = mtrack.get_record_targets(*(
+            ('1/2', e)
+            for e in (set(lay.obs_edges) & set(lay.round_edges(k)))
+        ))
+        if edges is not None:
+            result.append_operation(
+                "OBSERVABLE_INCLUDE",
+                edges,
+                lay.obs_index,
+            )
 
     return result
 
@@ -274,7 +257,7 @@ def generate_rounds_em3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
         tp = [stim.target_x, stim.target_y, stim.target_z]["XYZ".index(basis)]
         circuit = stim.Circuit()
         circuit.append_operation("MPP", [t for e in edges for t in [tp(lay.q2i[e.left]), stim.target_combiner(), tp(lay.q2i[e.right])]])
-        circuit += _sub_round_measurements_and_detectors(lay, mtrack, k, measurement_op=None)
+        circuit += _sub_round_measurements_and_detectors(lay=lay, mtrack=mtrack, sub_round=k)
         circuit.append_operation("TICK", [])
         moments.append(circuit)
         k += 1
@@ -299,18 +282,22 @@ def _pipeline_step(lay: HoneycombLayout, sub_round: int, mtrack: MeasurementTrac
     c = _cycle_data(lay, True, True)
     return [
         a2 + b1,
-        r3 + c + _sub_round_measurements_and_detectors(lay, mtrack, sub_round),
+        r3 + c + _sub_round_measurements_and_detectors(
+            lay=lay,
+            mtrack=mtrack,
+            sub_round=sub_round,
+        ),
     ]
 
 
 def _cycle_data(lay: HoneycombLayout, first: bool, second: bool) -> stim.Circuit:
     result = stim.Circuit()
     if first and second:
-        result.append_operation("C_XYZ", lay.data_qubit_indices)
+        result.append_operation("C_ZYX", lay.data_qubit_indices)
     elif first:
-        result.append_operation("C_XYZ", lay.data_qubit_indices_1st)
+        result.append_operation("C_ZYX", lay.data_qubit_indices_1st)
     elif second:
-        result.append_operation("C_XYZ", lay.data_qubit_indices_2nd)
+        result.append_operation("C_ZYX", lay.data_qubit_indices_2nd)
     return result
 
 
@@ -340,30 +327,37 @@ def _sub_round_resets(
 
 
 def _sub_round_measurements_and_detectors(
+        *,
         lay: HoneycombLayout,
         mtrack: MeasurementTracker,
         sub_round: int,
-        measurement_op: Optional[str] = "M",
-        lookback: int = 1,
-        include_obs: bool = True) -> stim.Circuit:
+) -> stim.Circuit:
     """Returns a circuit performing one layer of edge measurements from the honeycomb code."""
+
+    xor_vs_previous = lay.style == "PC3"
+    ancilla_measurement = lay.style != "EM3"
 
     round_edges = lay.round_edges(sub_round)
     moment = stim.Circuit()
-    if measurement_op is not None:
-        moment.append_operation(measurement_op, [lay.q2i[edge.center] for edge in round_edges])
+
+    # Measure the ancillae.
+    if ancilla_measurement:
+        moment.append_operation("M", [lay.q2i[edge.center] for edge in round_edges])
     mtrack.add_measurements(*(('1/2', e) for e in round_edges))
+    # Reconstruct edge measurements using previous round if needed due to non-demo measurement.
     for e in round_edges:
-        mtrack.add_group(*[Prev(('1/2', e), offset=t) for t in range(lookback)], group_key=e)
+        recover_value_set = [0, 1] if xor_vs_previous else [0]
+        mtrack.add_group(*[Prev(('1/2', e), offset=t) for t in recover_value_set], group_key=e)
 
     # Multiply edge measurements along the observable's path into the observable.
-    if include_obs:
+    manually_accumulating_obs = lay.style != "PC3"
+    if manually_accumulating_obs:
         moment.append_operation(
             "OBSERVABLE_INCLUDE",
             mtrack.get_record_targets(*(
-                    set(lay.obs_1_edges) & set(lay.round_edges(sub_round))
+                    set(lay.obs_edges) & set(lay.round_edges(sub_round))
             )),
-            0,
+            lay.obs_index,
         )
 
     # Edges from this round form half of the edges for the spoke-center hexes from last round.
