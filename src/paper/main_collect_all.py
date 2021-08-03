@@ -34,7 +34,7 @@ def main():
             obs=obs,
         )
         for p in [1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2]
-        for d in [1, 2, 3, 4, 5, 6, 7]
+        for d in [1, 2, 3, 4, 5]
         for style in ["SD6", "EM3", "PC3", "SI500"]
         for obs in ["H", "V"]
     ]
@@ -45,11 +45,11 @@ def main():
         *cases,
         out_path=out_path,
         discard_previous_data=True,
-        min_shots=10**3,
+        min_shots=20,
         max_batch=10**5,
-        max_shots=10**7,
+        max_shots=10**5,
         max_sample_std_dev=1e-2,
-        min_seen_logical_errors=10**2,
+        min_seen_logical_errors=10**1,
         use_internal_decoder=True,
     )
 
