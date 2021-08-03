@@ -13,9 +13,8 @@ def main():
                 tile_width=d,
                 tile_height=d,
                 sub_rounds=30,
-                style="SD6",
-                v_obs=True,
-                h_obs=False,
+                style="EM3",
+                obs="V",
             )
             for d in [2, 3, 4]
             for p in [0.001, 0.002, 0.003]

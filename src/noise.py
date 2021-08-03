@@ -4,7 +4,7 @@ from typing import Optional, Dict, Set, Tuple
 import stim
 
 ANY_CLIFFORD_1_OPS = {"C_XYZ", "C_ZYX", "H", "H_YZ", "I"}
-ANY_CLIFFORD_2_OPS = {"CX", "XCX", "YCX", "CZ", "CY", "YCX", "YCY"}
+ANY_CLIFFORD_2_OPS = {"CX", "CY", "CZ", "XCX", "XCY", "XCZ", "YCX", "YCY", "YCZ"}
 RESET_OPS = {"R", "RX", "RY"}
 MEASURE_OPS = {"M", "MX", "MY"}
 ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}

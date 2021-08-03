@@ -15,6 +15,7 @@ def main():
                 tile_height=d,
                 sub_rounds=30,
                 style="SD6",
+                obs="V",
             )
             for p in [1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2]
             for d in [1, 2, 3, 4, 5, 6, 7, 8, 9]

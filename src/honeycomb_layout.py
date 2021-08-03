@@ -82,8 +82,7 @@ class HoneycombLayout:
                  sub_rounds: int,
                  noise: float,
                  style: str,
-                 v_obs: bool,
-                 h_obs: bool):
+                 obs: str):
         """
         Args:
             tile_width: The number of times to horizontally repeat the tiling unit of the code.
@@ -92,15 +91,19 @@ class HoneycombLayout:
                 separately).
             noise: Determines the strength of noisy operations, relative to the error model.
             style: Determines details of the circuit layout and the error model used. Valid values are
-                "SD6", "EM3", "CP3", and "SI7".
+                "SD6": Standard depolarizing circuit (w/ 6 step cycle).
+                "EM3": Entangling measurements circuit (w/ 3 step cycle).
+                "CP3": Controlled paulis circuit (w/ 3 step cycle).
+            obs: The observable to initialize and measure fault tolerantly. Valid values are:
+                "H": Horizontal observable.
+                "V": Vertical observable.
         """
         self.tile_width = tile_width
         self.tile_height = tile_height
         self.sub_rounds = sub_rounds
         self.noise = noise
         self.style = style
-        self.v_obs = v_obs
-        self.h_obs = h_obs
+        self.obs = obs
 
     @functools.cached_property
     def noise_model(self) -> NoiseModel:
@@ -182,11 +185,12 @@ class HoneycombLayout:
         ]
 
     def obs_before_sub_round(self, sub_round: int) -> Tuple[str, List[complex]]:
-        assert self.v_obs != self.h_obs
-        if self.v_obs:
+        if self.obs == "V":
             return self.obs_v_before_sub_round(sub_round)
-        else:
+        elif self.obs == "H":
             return self.obs_h_before_sub_round(sub_round)
+        else:
+            raise NotImplementedError(self.obs)
 
     def obs_v_before_sub_round(self, sub_round: int) -> Tuple[str, List[complex]]:
         case = sub_round % 6
@@ -308,27 +312,30 @@ class HoneycombLayout:
 
     @functools.cached_property
     def obs_index(self) -> int:
-        assert self.v_obs != self.h_obs
-        if self.v_obs:
+        if self.obs == "V":
             return 0
-        else:
+        elif self.obs == "H":
             return 1
+        else:
+            raise NotImplementedError(self.obs)
 
     @functools.cached_property
     def obs_edges(self) -> Tuple[Edge]:
-        assert self.v_obs != self.h_obs
-        if self.v_obs:
+        if self.obs == "V":
             return self.obs_v_edges
-        else:
+        elif self.obs == "H":
             return self.obs_h_edges
+        else:
+            raise NotImplementedError(self.obs)
 
     @functools.cached_property
     def obs_qubits(self) -> Tuple[complex]:
-        assert self.v_obs != self.h_obs
-        if self.v_obs:
+        if self.obs == "V":
             return self.obs_v_qubits
-        else:
+        elif self.obs == "H":
             return self.obs_h_qubits
+        else:
+            raise NotImplementedError(self.obs)
 
     @functools.cached_property
     def all_edges(self) -> Tuple[Edge, ...]:

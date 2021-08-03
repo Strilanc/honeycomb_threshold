@@ -48,9 +48,6 @@ def fault_tolerant_init(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
 
     init_basis = lay.obs_before_sub_round(0)[0]
     if init_basis != "Z":
-        # if lay.style == "SD6":
-        #     result.append_operation(f"H_YZ", lay.data_qubit_indices)
-        # else:
         result.append_operation(f"H_{init_basis}Z", lay.data_qubit_indices)
         result.append_operation("TICK", [])
 

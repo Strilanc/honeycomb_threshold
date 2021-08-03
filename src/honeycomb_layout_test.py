@@ -23,9 +23,9 @@ def diagram_2d(values: Dict[complex, Any]):
 
 
 def test_ctx():
-    ctx1 = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=18, noise=0.001, style="SD6", v_obs=True, h_obs=False)
-    ctx2 = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=18, noise=0.001, style="SD6", v_obs=True, h_obs=False)
-    ctx3 = HoneycombLayout(tile_width=3, tile_height=3, sub_rounds=18, noise=0.001, style="SD6", v_obs=True, h_obs=False)
+    ctx1 = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx2 = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx3 = HoneycombLayout(tile_width=3, tile_height=3, sub_rounds=18, noise=0.001, style="SD6", obs="V")
 
     assert ctx1.wrap(-1) == 3
     assert ctx1.wrap(-1j) == 5j
@@ -124,31 +124,31 @@ def test_ctx():
     )
     assert ctx1.obs_h_before_sub_round(0) == (
         "X",
-        [1, 3],
+        [1 + 1j, 1, 3, 3 + 1j],
     )
     assert ctx2.obs_h_before_sub_round(0) == (
         "X",
-        [1, 3, 5, 7],
+        [1 + 1j, 1, 3, 3 + 1j, 5 + 1j, 5, 7, 7 + 1j],
     )
     assert ctx2.obs_h_before_sub_round(1) == (
         "X",
-        [1 + 1j, 1, 3, 3 + 1j, 5 + 1j, 5, 7, 7 + 1j],
+        [1 + 1j, 3 + 1j, 5 + 1j, 7 + 1j],
     )
     assert ctx2.obs_h_before_sub_round(2) == (
         "Z",
-        [1 + 1j, 1, 3, 3 + 1j, 5 + 1j, 5, 7, 7 + 1j],
+        [1 + 1j, 3 + 1j, 5 + 1j, 7 + 1j],
     )
     assert ctx2.obs_h_before_sub_round(3) == (
         "Z",
-        [1 + 1j, 3 + 1j, 5 + 1j, 7 + 1j],
+        [1, 3, 5, 7],
     )
     assert ctx2.obs_h_before_sub_round(4) == (
         "Y",
-        [1 + 1j, 3 + 1j, 5 + 1j, 7 + 1j],
+        [1, 3, 5, 7],
     )
     assert ctx2.obs_h_before_sub_round(5) == (
         "Y",
-        [1, 3, 5, 7],
+        [1 + 1j, 1, 3, 3 + 1j, 5 + 1j, 5, 7, 7 + 1j],
     )
 
     assert ctx1.obs_h_edges == (
@@ -177,7 +177,7 @@ def test_ctx():
 
 
 def test_ctx_layout():
-    ctx = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=20, noise=0.001, style="SD6")
+    ctx = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=20, noise=0.001, style="SD6", obs="V")
     def scale(pt: complex) -> complex:
         return pt.real * 8 + pt.imag * 2j
     d = {}
@@ -220,7 +220,7 @@ def test_ctx_layout():
 
 
 def test_ctx_indexing():
-    ctx = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=20, noise=0.001, style="SD6")
+    ctx = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=20, noise=0.001, style="SD6", obs="V")
     def scale(pt: complex) -> complex:
         return pt.real * 4 + pt.imag * 2j
     d = {}

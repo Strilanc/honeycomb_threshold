@@ -16,6 +16,7 @@ def test_collect_and_plot():
                     tile_height=d,
                     sub_rounds=30,
                     style="SD6",
+                    obs="V",
                 )
                 for p in [1e-5, 1e-4]
                 for d in [1, 2]
@@ -28,4 +29,4 @@ def test_collect_and_plot():
             min_seen_logical_errors=1,
         )
 
-        plot_data(f, show=True, out_path=d + "/tmp.png", title="Test")
+        plot_data(f, show=False, out_path=d + "/tmp.png", title="Test")

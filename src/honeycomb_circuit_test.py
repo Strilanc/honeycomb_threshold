@@ -11,14 +11,14 @@ from honeycomb_layout import HoneycombLayout
     range(1, 5),
     range(2),
     range(1, 24),
-    [1, 2],
+    ["H", "V"],
     ["PC3", "SD6", "EM3"],
 ))
 def test_circuit_has_decomposing_error_model(
         tile_width: int,
         tile_height_extra: int,
         sub_rounds: int,
-        obs: int,
+        obs: str,
         style: str):
     circuit = generate_honeycomb_circuit(HoneycombLayout(
         tile_width=tile_width,
@@ -26,8 +26,7 @@ def test_circuit_has_decomposing_error_model(
         sub_rounds=sub_rounds,
         noise=0.001,
         style=style,
-        v_obs=bool(obs & 1),
-        h_obs=bool(obs & 2),
+        obs=obs,
     ))
     _ = circuit.detector_error_model(decompose_errors=True)
 
@@ -39,8 +38,7 @@ def test_circuit_details_SD6():
         sub_rounds=1003,
         noise=0.001,
         style="SD6",
-        v_obs=True,
-        h_obs=False,
+        obs="V",
     ))
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
@@ -293,8 +291,7 @@ def test_circuit_details_PC3():
         sub_rounds=1003,
         noise=0.001,
         style="PC3",
-        v_obs=True,
-        h_obs=False,
+        obs="V",
     ))
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
@@ -501,8 +498,7 @@ def test_circuit_details_EM3():
         sub_rounds=1003,
         noise=0.001,
         style="EM3",
-        v_obs=True,
-        h_obs=False,
+        obs="V",
     ))
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
@@ -597,8 +593,7 @@ def test_circuit_details_EM3_h_obs():
         sub_rounds=1003,
         noise=0.001,
         style="EM3",
-        v_obs=False,
-        h_obs=True,
+        obs="H",
     ))
     cleaned = stim.Circuit(str(actual))
     assert cleaned == stim.Circuit("""
