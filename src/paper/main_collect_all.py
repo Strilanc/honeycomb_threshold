@@ -48,7 +48,7 @@ def main():
         min_shots=20,
         max_batch=10**5,
         max_shots=10**5,
-        max_sample_std_dev=1e-2,
+        max_sample_std_dev=1e-1,
         min_seen_logical_errors=10**1,
         use_internal_decoder=True,
     )
