@@ -53,19 +53,19 @@ def fault_tolerant_init(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
         # else:
         result.append_operation(f"H_{init_basis}Z", lay.data_qubit_indices)
         result.append_operation("TICK", [])
-    v2 = "XYZ".index(init_basis)
-    v1 = (v2 - 1) % 3
 
     # Create dummy stabilizer records to compare against during initial rounds.
     # Then run enough rounds to ensure later measurements aren't comparing to dummies anymore.
     for sub_round in range(3):
+        edge_init = "XYZ".index(init_basis)
+        half_init = (edge_init - 1) % 3
         # Z edges start in a known state.
-        mtrack.add_dummies(*lay.round_edges(sub_round), obstacle=sub_round != v2)
+        mtrack.add_dummies(*lay.round_edges(sub_round), obstacle=sub_round != edge_init)
         mtrack.add_dummies(*[('1/2', e) for e in lay.round_edges(sub_round)])
         # Z stabilizers start in a known state.
-        mtrack.add_dummies(*lay.round_hex_centers(sub_round), obstacle=sub_round != v2)
+        mtrack.add_dummies(*lay.round_hex_centers(sub_round), obstacle=sub_round != edge_init)
         # Y stabilizers start half formed (have Z part but not X part).
-        mtrack.add_dummies(*[('1/2', h) for h in lay.round_hex_centers(sub_round)], obstacle=sub_round != v1)
+        mtrack.add_dummies(*[('1/2', h) for h in lay.round_hex_centers(sub_round)], obstacle=sub_round != half_init)
 
     return  result
 
@@ -148,28 +148,18 @@ def generate_rounds_sd6(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
         # Run the sub rounds in a pipelined fashion.
         next_sub_round = 0
         while next_sub_round < 4 and next_sub_round < n - 2:
-            for m in _pipeline_step(lay, next_sub_round, mtrack):
-                result += m
-                result.append_operation("TICK", [])
+            result += _sd6_pipeline_step(lay, next_sub_round, mtrack)
             next_sub_round += 1
         iterations = max(0, n - next_sub_round - 2) // 3
         if iterations > 1:
             loop_body = stim.Circuit()
-            for m in _pipeline_step(lay, 1, mtrack):
-                loop_body += m
-                loop_body.append_operation("TICK", [])
-            for m in _pipeline_step(lay, 2, mtrack):
-                loop_body += m
-                loop_body.append_operation("TICK", [])
-            for m in _pipeline_step(lay, 0, mtrack):
-                loop_body += m
-                loop_body.append_operation("TICK", [])
+            loop_body += _sd6_pipeline_step(lay, next_sub_round, mtrack)
+            loop_body += _sd6_pipeline_step(lay, next_sub_round + 1, mtrack)
+            loop_body += _sd6_pipeline_step(lay, next_sub_round + 2, mtrack)
             result += loop_body * iterations
             next_sub_round += iterations * 3
         for sub_round in range(next_sub_round, n - 2):
-            for m in _pipeline_step(lay, sub_round, mtrack):
-                result += m
-                result.append_operation("TICK", [])
+            result += _sd6_pipeline_step(lay, sub_round, mtrack)
 
         # End the pipeline.
         _, b2 = _sub_round_2q_ops(lay, n - 2)
@@ -275,19 +265,24 @@ def generate_rounds_em3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
     return result
 
 
-def _pipeline_step(lay: HoneycombLayout, sub_round: int, mtrack: MeasurementTracker) -> List[stim.Circuit]:
+def _sd6_pipeline_step(lay: HoneycombLayout, sub_round: int, mtrack: MeasurementTracker) -> stim.Circuit:
     _, b1 = _sub_round_2q_ops(lay, sub_round)
     a2, _ = _sub_round_2q_ops(lay, sub_round + 1)
     r3 = _sub_round_resets(lay, sub_round + 2)
     c = _cycle_data(lay, True, True)
-    return [
-        a2 + b1,
-        r3 + c + _sub_round_measurements_and_detectors(
-            lay=lay,
-            mtrack=mtrack,
-            sub_round=sub_round,
-        ),
-    ]
+    result = stim.Circuit()
+    result += a2
+    result += b1
+    result.append_operation("TICK", [])
+    result += r3
+    result += c
+    result += _sub_round_measurements_and_detectors(
+        lay=lay,
+        mtrack=mtrack,
+        sub_round=sub_round,
+    )
+    result.append_operation("TICK", [])
+    return result
 
 
 def _cycle_data(lay: HoneycombLayout, first: bool, second: bool) -> stim.Circuit:
@@ -332,7 +327,10 @@ def _sub_round_measurements_and_detectors(
         mtrack: MeasurementTracker,
         sub_round: int,
 ) -> stim.Circuit:
-    """Returns a circuit performing one layer of edge measurements from the honeycomb code."""
+    """Returns a circuit performing one layer of edge measurements from the honeycomb code.
+
+    Handles annotating detectors and observables within the bulk of the circuit.
+    """
 
     xor_vs_previous = lay.style == "PC3"
     ancilla_measurement = lay.style != "EM3"
@@ -359,6 +357,11 @@ def _sub_round_measurements_and_detectors(
             )),
             lay.obs_index,
         )
+
+    # When initializing in the X basis, the first subround edge measurements are deterministic.
+    if sub_round == 0 and lay.obs_before_sub_round(0)[0] == 'X':
+        for e in lay.round_edges(0):
+            mtrack.append_detector(e, out_circuit=moment, coords=(e.center.real, e.center.imag, 0))
 
     # Edges from this round form half of the edges for the spoke-center hexes from last round.
     for h in lay.round_hex_centers((sub_round - 1) % 3):
