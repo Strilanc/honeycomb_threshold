@@ -23,9 +23,9 @@ def diagram_2d(values: Dict[complex, Any]):
 
 
 def test_ctx():
-    ctx1 = HoneycombLayout(tile_diam=1, sub_rounds=18, noise=0.001, style="SD6")
-    ctx2 = HoneycombLayout(tile_diam=2, sub_rounds=18, noise=0.001, style="SD6")
-    ctx3 = HoneycombLayout(tile_diam=3, sub_rounds=18, noise=0.001, style="SD6")
+    ctx1 = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx2 = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx3 = HoneycombLayout(tile_width=3, tile_height=3, sub_rounds=18, noise=0.001, style="SD6", obs="V")
 
     assert ctx1.wrap(-1) == 3
     assert ctx1.wrap(-1j) == 5j
@@ -97,14 +97,65 @@ def test_ctx():
     assert ctx1.round_hex_centers(1) == (4j, 2 + 1j)
     assert ctx1.round_hex_centers(2) == (2j, 2 + 5j)
     assert ctx2.round_hex_centers(0) == (0, 0 + 6j, 2 + 3j, 2 + 9j, 4, 4 + 6j, 6 + 3j, 6 + 9j)
-    assert ctx1.obs_1_qubits == (1, 1 + 1j, 1 + 2j, 1 + 3j, 1 + 4j, 1 + 5j)
-    assert ctx1.obs_1_edges == (
+    assert ctx1.obs_v_qubits == (1, 1 + 1j, 1 + 2j, 1 + 3j, 1 + 4j, 1 + 5j)
+    assert ctx1.obs_v_before_sub_round(0) == (
+        "Z",
+        [1 + 1j, 1 + 2j, 1 + 4j, 1 + 5j],
+    )
+
+    assert ctx1.obs_v_edges == (
         Edge(left=1 + 0j, right=1 + 1j, center=1 + 0.5j),
         Edge(left=1 + 1j, right=1 + 2j, center=1 + 1.5j),
         Edge(left=1 + 2j, right=1 + 3j, center=1 + 2.5j),
         Edge(left=1 + 3j, right=1 + 4j, center=1 + 3.5j),
         Edge(left=1 + 4j, right=1 + 5j, center=1 + 4.5j),
         Edge(left=1 + 5j, right=1 + 0j, center=1 + 5.5j),
+    )
+    assert ctx1.obs_h_qubits == (1 + 1j, 1, 3, 3 + 1j)
+    assert ctx2.obs_h_qubits == (
+        1 + 1j,
+        1,
+        3,
+        3 + 1j,
+        5 + 1j,
+        5,
+        7,
+        7 + 1j,
+    )
+    assert ctx1.obs_h_before_sub_round(0) == (
+        "X",
+        [1 + 1j, 1, 3, 3 + 1j],
+    )
+    assert ctx2.obs_h_before_sub_round(0) == (
+        "X",
+        [1 + 1j, 1, 3, 3 + 1j, 5 + 1j, 5, 7, 7 + 1j],
+    )
+    assert ctx2.obs_h_before_sub_round(1) == (
+        "X",
+        [1 + 1j, 3 + 1j, 5 + 1j, 7 + 1j],
+    )
+    assert ctx2.obs_h_before_sub_round(2) == (
+        "Z",
+        [1 + 1j, 3 + 1j, 5 + 1j, 7 + 1j],
+    )
+    assert ctx2.obs_h_before_sub_round(3) == (
+        "Z",
+        [1, 3, 5, 7],
+    )
+    assert ctx2.obs_h_before_sub_round(4) == (
+        "Y",
+        [1, 3, 5, 7],
+    )
+    assert ctx2.obs_h_before_sub_round(5) == (
+        "Y",
+        [1 + 1j, 1, 3, 3 + 1j, 5 + 1j, 5, 7, 7 + 1j],
+    )
+
+    assert ctx1.obs_h_edges == (
+        Edge(left=1 + 1j, right=3 + 1j, center=0 + 1j),
+        Edge(left=1 + 0j, right=1 + 1j, center=1 + 0.5j),
+        Edge(left=3 + 0j, right=1 + 0j, center=2 + 0j),
+        Edge(left=3 + 1j, right=3 + 0j, center=3 + 0.5j),
     )
     assert ctx1.round_edges(0) == (
         Edge(left=1 + 3j, right=3 + 3j, center=0 + 3j),
@@ -126,7 +177,7 @@ def test_ctx():
 
 
 def test_ctx_layout():
-    ctx = HoneycombLayout(tile_diam=2, sub_rounds=20, noise=0.001, style="SD6")
+    ctx = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=20, noise=0.001, style="SD6", obs="V")
     def scale(pt: complex) -> complex:
         return pt.real * 8 + pt.imag * 2j
     d = {}
@@ -137,7 +188,7 @@ def test_ctx_layout():
     for k, v in ctx._hex_center_categories.items():
         d[scale(k)] = "XYZ"[v]
     for r in range(6):
-        p, qs = ctx.obs_1_before_sub_round(r)
+        p, qs = ctx.obs_v_before_sub_round(r)
         for q in qs:
             d[scale(q) + r + 1] = p
     assert diagram_2d(d).strip() == """
@@ -169,7 +220,7 @@ def test_ctx_layout():
 
 
 def test_ctx_indexing():
-    ctx = HoneycombLayout(tile_diam=1, sub_rounds=20, noise=0.001, style="SD6")
+    ctx = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=20, noise=0.001, style="SD6", obs="V")
     def scale(pt: complex) -> complex:
         return pt.real * 4 + pt.imag * 2j
     d = {}

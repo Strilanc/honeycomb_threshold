@@ -1,5 +1,6 @@
 from circuit_diagrams import plot_circuit
 from honeycomb_circuit import generate_honeycomb_circuit
+from honeycomb_layout import HoneycombLayout
 
 
 def assert_same_diagram(actual, expected):
@@ -15,12 +16,14 @@ def assert_same_diagram(actual, expected):
 
 
 def test_plot_SD6():
-    assert_same_diagram(plot_circuit(generate_honeycomb_circuit(
+    assert_same_diagram(plot_circuit(generate_honeycomb_circuit(HoneycombLayout(
         noise=0.001,
-        tile_diam=1,
+        tile_width=1,
+        tile_height=1,
         sub_rounds=13,
         style="SD6",
-    ), only_repeat_block=True), r"""
+        obs="V",
+    )), only_repeat_block=True), r"""
                                                                                                             ~
                                                                                                             |
                                                                           ~                                 |
@@ -62,12 +65,14 @@ def test_plot_SD6():
 
 
 def test_plot_PC3():
-    assert_same_diagram(plot_circuit(generate_honeycomb_circuit(
+    assert_same_diagram(plot_circuit(generate_honeycomb_circuit(HoneycombLayout(
         noise=0.001,
-        tile_diam=1,
+        tile_width=1,
+        tile_height=1,
         sub_rounds=20,
         style="PC3",
-    ), only_repeat_block=True), r"""
+        obs="V",
+    )), only_repeat_block=True), r"""
                                                 ~
                          ~                      |
                         M|                      X                       X ~
@@ -95,12 +100,14 @@ def test_plot_PC3():
 
 
 def test_plot_EM3():
-    assert_same_diagram(plot_circuit(generate_honeycomb_circuit(
+    assert_same_diagram(plot_circuit(generate_honeycomb_circuit(HoneycombLayout(
         noise=0.001,
-        tile_diam=2,
+        tile_width=2,
+        tile_height=2,
         sub_rounds=20,
         style="EM3",
-    ), only_repeat_block=True), r"""
+        obs="V",
+    )), only_repeat_block=True), r"""
                         ~                                                                       ~
                         |                                                ~                      |                                                ~
          ~--y           y           y-----------y ~         y           y+----------y           y           y-----------y ~         y           y+-~

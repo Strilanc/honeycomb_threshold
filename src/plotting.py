@@ -1,7 +1,7 @@
 import csv
 import math
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional
+from typing import Any, Dict, Tuple, Optional
 
 import matplotlib.pyplot as plt
 
@@ -57,17 +57,19 @@ def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: boo
     if out_path is None and show is None:
         show = True
 
-    lay_to_noise_to_results: Dict[Tuple[int, int], Dict[float, RecordedExperimentData]] = {}
+    lay_to_noise_to_results: Dict[Tuple[Any, ...], Dict[float, RecordedExperimentData]] = {}
     for path in paths:
         with open(path, "r") as f:
             for row in csv.DictReader(f):
-                tile_diam = int(row["tile_diam"])
+                tile_width = int(row["tile_width"])
+                tile_height = int(row["tile_height"])
                 physical_error_rate = float(row["physical_error_rate"])
                 sub_rounds = int(row["sub_rounds"])
-                d1 = lay_to_noise_to_results.setdefault((tile_diam, sub_rounds), {})
-                d2 = d1.setdefault(physical_error_rate, RecordedExperimentData())
-                d2.num_shots += int(row["num_shots"])
-                d2.num_correct += int(row["num_correct"])
+                layout_key = (tile_width, tile_height, sub_rounds)
+                all_layout_results = lay_to_noise_to_results.setdefault(layout_key, {})
+                case_data = all_layout_results.setdefault(physical_error_rate, RecordedExperimentData())
+                case_data.num_shots += int(row["num_shots"])
+                case_data.num_correct += int(row["num_correct"])
 
     assert fig is None == ax is None
     if fig is None:
@@ -75,9 +77,10 @@ def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: boo
         ax = fig.add_subplot()
 
     cor = lambda p: total_error_to_per_round_error(p, rounds=sub_rounds)
-    markers = "_ov*sp^<>8PhH+xXDd|"
-    for tile_diam, sub_rounds in sorted(lay_to_noise_to_results.keys()):
-        group = lay_to_noise_to_results[(tile_diam, sub_rounds)]
+    markers = "ov*sp^<>8PhH+xXDd|"
+    for k, case_key in enumerate(sorted(lay_to_noise_to_results.keys())):
+        tile_width, tile_height, sub_rounds = case_key
+        group = lay_to_noise_to_results[case_key]
         xs = []
         ys = []
         x_bounds = []
@@ -94,7 +97,7 @@ def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: boo
             x_bounds.append(physical_error_rate)
             ys_low.append(cor(low))
             ys_high.append(cor(high))
-        ax.plot(xs, ys, label=f"{tile_diam=},{sub_rounds=}", marker=markers[tile_diam], zorder=100 - tile_diam)
+        ax.plot(xs, ys, label=f"w={tile_width},h={tile_height}", marker=markers[k], zorder=100 - k)
         ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
 
     ax.legend()

@@ -6,6 +6,8 @@ from typing import Iterator, List, Dict, Any, Tuple
 
 import stim
 
+from noise import ANY_CLIFFORD_2_OPS
+
 
 def _iter_circuit(c: stim.Circuit, reps: int, nested: int) -> Iterator[stim.CircuitInstruction]:
     for _ in range(reps):
@@ -132,11 +134,11 @@ def plot_circuit(c: stim.Circuit, only_repeat_block: bool):
                 i2q[q] = p
                 assert p not in seen_coords
                 seen_coords.add(p)
-        elif op.name in ["M", "R", "H", "H_YZ", "C_XYZ", "MR", "MY", "MX"]:
+        elif op.name in ["M", "R", "H", "H_YZ", "C_XYZ", "C_ZYX", "MR", "MY", "MX"]:
             s = op.name
             if op.name == "H_YZ":
                 s = "G"
-            if op.name == "C_XYZ":
+            if op.name == "C_XYZ" or op.name == "C_ZYX":
                 s = "C"
             if op.name == "MX" or op.name == "MY":
                 s = "m"
@@ -146,7 +148,7 @@ def plot_circuit(c: stim.Circuit, only_repeat_block: bool):
                 q = i2q[t.value]
                 assert q not in cur_level
                 cur_level[q] = s
-        elif op.name in ["CX", "XCX", "YCX", "YCX", "YCZ", "XCY"]:
+        elif op.name in ANY_CLIFFORD_2_OPS:
             qs = [t.value for t in op.targets_copy()]
             for k in range(0, len(qs), 2):
                 q1 = i2q[qs[k]]

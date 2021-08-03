@@ -1,7 +1,8 @@
 import numpy as np
 
-from experiment import collect_simulated_experiment_data, plot_data
+from collect_data import collect_simulated_experiment_data
 from honeycomb_layout import HoneycombLayout
+from plotting import plot_data
 
 
 def main():
@@ -9,12 +10,14 @@ def main():
         *[
             HoneycombLayout(
                 noise=p,
-                tile_diam=d,
+                tile_width=d,
+                tile_height=d,
                 sub_rounds=30,
-                style="SD6",
+                style="EM3",
+                obs="V",
             )
             for d in [2, 3, 4]
-            for p in np.geomspace(start=5e-4, stop=3e-3, num=5)
+            for p in [0.001, 0.002, 0.003]
         ],
         out_path="test.csv",
         discard_previous_data=True,

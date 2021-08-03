@@ -11,9 +11,11 @@ def main():
         *[
             HoneycombLayout(
                 noise=p,
-                tile_diam=d,
+                tile_width=d,
+                tile_height=d,
                 sub_rounds=30,
                 style="EM3",
+                obs="V",
             )
             for p in [1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2]
             for d in [1, 2, 3, 4, 5, 6, 7, 8, 9]

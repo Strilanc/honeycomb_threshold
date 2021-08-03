@@ -6,7 +6,7 @@ from decoding import sample_decode_count_correct
 from honeycomb_circuit import generate_honeycomb_circuit
 from honeycomb_layout import HoneycombLayout
 
-CSV_HEADER = "tile_diam,sub_rounds,physical_error_rate,circuit_style,num_shots,num_correct,total_processing_seconds"
+CSV_HEADER = "tile_width,tile_height,sub_rounds,physical_error_rate,circuit_style,num_shots,num_correct,total_processing_seconds"
 
 
 def collect_simulated_experiment_data(*cases: HoneycombLayout,
@@ -61,19 +61,14 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
         total_shots = 0
         while True:
             t0 = time.monotonic()
-            circuit = generate_honeycomb_circuit(
-                tile_diam=lay.tile_diam,
-                sub_rounds=lay.sub_rounds,
-                noise=lay.noise,
-                style=lay.style,
-            )
+            circuit = generate_honeycomb_circuit(lay)
             num_correct = sample_decode_count_correct(
                 num_shots=num_next_shots,
                 circuit=circuit,
                 use_internal_decoder=use_internal_decoder,
             )
             t1 = time.monotonic()
-            record = f"{lay.tile_diam},{lay.sub_rounds},{lay.noise},{lay.style},{num_next_shots},{num_correct},{t1 - t0}"
+            record = f"{lay.tile_width},{lay.tile_height},{lay.sub_rounds},{lay.noise},{lay.style},{num_next_shots},{num_correct},{t1 - t0}"
             with open(out_path, "a") as f:
                 print(record, file=f)
             print(record)
