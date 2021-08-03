@@ -1,45 +1,8 @@
-import csv
-import math
-from dataclasses import dataclass
-from typing import Any, Dict, Tuple, Optional
+from typing import Optional
 
 import matplotlib.pyplot as plt
 
-from probability_util import log_binomial, binary_search
-
-
-@dataclass
-class RecordedExperimentData:
-    num_shots: int = 0
-    num_correct: int = 0
-
-    def likely_error_rate_bounds(self, *, desired_ratio_vs_max_likelihood: float) -> Tuple[float, float]:
-        """Compute relative-likelihood bounds.
-
-        Returns the min/max error rates whose Bayes factors are within the given ratio of the maximum
-        likelihood estimate.
-        """
-        actual_errors = self.num_shots - self.num_correct
-        log_max_likelihood = log_binomial(p=actual_errors / self.num_shots, n=self.num_shots, hits=actual_errors)
-        target_log_likelihood = log_max_likelihood + math.log(desired_ratio_vs_max_likelihood)
-        acc = 100
-        low = binary_search(
-            func=lambda exp_err: log_binomial(p=exp_err / (acc * self.num_shots), n=self.num_shots, hits=actual_errors),
-            target=target_log_likelihood,
-            min_x=0,
-            max_x=actual_errors * acc) / acc
-        high = binary_search(
-            func=lambda exp_err: -log_binomial(p=exp_err / (acc * self.num_shots), n=self.num_shots, hits=actual_errors),
-            target=-target_log_likelihood,
-            min_x=actual_errors * acc,
-            max_x=self.num_shots * acc) / acc
-        return low / self.num_shots, high / self.num_shots
-
-    @property
-    def logical_error_rate(self) -> float:
-        if self.num_shots == 0:
-            return 1
-        return (self.num_shots - self.num_correct) / self.num_shots
+from collect_data import read_recorded_data, GROUPED_RECORDED_DATA
 
 
 def total_error_to_per_round_error(error_rate: float, rounds: int) -> float:
@@ -53,54 +16,49 @@ def total_error_to_per_round_error(error_rate: float, rounds: int) -> float:
     return round_error_rate
 
 
-def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: bool = None, fig: plt.Figure = None, ax: plt.Axes = None):
-    if out_path is None and show is None:
+def plot_data(data: GROUPED_RECORDED_DATA,
+              title: str,
+              out_path: Optional[str] = None,
+              show: bool = False,
+              fig: plt.Figure = None,
+              ax: plt.Axes = None):
+    if out_path is None and show is None and ax is None:
         show = True
 
-    lay_to_noise_to_results: Dict[Tuple[Any, ...], Dict[float, RecordedExperimentData]] = {}
-    for path in paths:
-        with open(path, "r") as f:
-            for row in csv.DictReader(f):
-                tile_width = int(row["tile_width"])
-                tile_height = int(row["tile_height"])
-                physical_error_rate = float(row["physical_error_rate"])
-                sub_rounds = int(row["sub_rounds"])
-                layout_key = (tile_width, tile_height, sub_rounds)
-                all_layout_results = lay_to_noise_to_results.setdefault(layout_key, {})
-                case_data = all_layout_results.setdefault(physical_error_rate, RecordedExperimentData())
-                case_data.num_shots += int(row["num_shots"])
-                case_data.num_correct += int(row["num_correct"])
-
-    assert fig is None == ax is None
+    assert (fig is None) == (ax is None)
     if fig is None:
         fig = plt.figure()
         ax = fig.add_subplot()
 
-    cor = lambda p: total_error_to_per_round_error(p, rounds=sub_rounds)
     markers = "ov*sp^<>8PhH+xXDd|"
-    for k, case_key in enumerate(sorted(lay_to_noise_to_results.keys())):
-        tile_width, tile_height, sub_rounds = case_key
-        group = lay_to_noise_to_results[case_key]
-        xs = []
-        ys = []
-        x_bounds = []
-        ys_low = []
-        ys_high = []
-        for physical_error_rate in sorted(group.keys()):
-            datum = group[physical_error_rate]
-            # Show curve going through max likelihood estimate, unless it's at zero error.
-            if datum.num_correct < datum.num_shots:
-                xs.append(physical_error_rate)
-                ys.append(cor(datum.logical_error_rate))
-            # Show relative-likelihood-above-1e-3 error bars as a colored region.
-            low, high = datum.likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3)
-            x_bounds.append(physical_error_rate)
-            ys_low.append(cor(low))
-            ys_high.append(cor(high))
-        ax.plot(xs, ys, label=f"w={tile_width},h={tile_height}", marker=markers[k], zorder=100 - k)
-        ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
+    order = 0
+    for k1 in sorted(data.keys()):
+        g1 = data[k1]
+        for k2 in sorted(g1.keys()):
+            g2 = g1[k2]
+            cor = lambda p: total_error_to_per_round_error(p, rounds=k2.sub_rounds // 3)
+            xs = []
+            ys = []
+            x_bounds = []
+            ys_low = []
+            ys_high = []
+            for physical_error_rate in sorted(g2.keys()):
+                datum = g2[physical_error_rate]
+                # Show curve going through max likelihood estimate, unless it's at zero error.
+                if datum.num_correct < datum.num_shots:
+                    xs.append(physical_error_rate)
+                    ys.append(cor(datum.logical_error_rate))
+                # Show relative-likelihood-above-1e-3 error bars as a colored region.
+                low, high = datum.likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3)
+                x_bounds.append(physical_error_rate)
+                ys_low.append(cor(low))
+                ys_high.append(cor(high))
+            ax.plot(xs, ys, label=k2.legend_label(), marker=markers[order], zorder=100 - order)
+            ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
+            order += 1
 
-    ax.legend()
+    if data:
+        ax.legend(loc="lower right")
     ax.loglog()
 
     def format_tick(p: float) -> str:
@@ -115,13 +73,13 @@ def plot_data(*paths: str, title: str, out_path: Optional[str] = None, show: boo
     ticks_x = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if k*10**-p <= 0.5]
     ax.set_xticks([x for x in ticks_x])
     ax.set_yticks([y for y in ticks_y])
-    ax.set_xticklabels([format_tick(x) for x in ticks_x], rotation=45)
-    ax.set_yticklabels([format_tick(y) for y in ticks_y])
+    ax.set_xticklabels([format_tick(x) for x in ticks_x], rotation=70)
     ax.set_xlim(1e-4, 0.5)
     ax.set_ylim(1e-8, 0.5)
+    ax.set_yticklabels([format_tick(y) for y in ticks_y])
+    ax.set_ylabel("Per-round Logical Error Rate")
     ax.set_title(title)
-    ax.set_ylabel("Per-Sub-Round Logical Error Rate (Vertical Observable)")
-    ax.set_xlabel("Physical Error Rate Parameter (p)")
+    ax.set_xlabel("Noise (p)")
     ax.grid()
     if out_path is not None:
         fig.tight_layout()

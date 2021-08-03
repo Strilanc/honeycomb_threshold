@@ -9,7 +9,7 @@ from honeycomb_layout import HoneycombLayout
 
 @pytest.mark.parametrize('tile_width,tile_height_extra,sub_rounds,obs,style', itertools.product(
     range(1, 5),
-    range(2),
+    [-1, 0, +1],
     range(1, 24),
     ["H", "V"],
     ["PC3", "SD6", "EM3"],
@@ -22,7 +22,7 @@ def test_circuit_has_decomposing_error_model(
         style: str):
     circuit = generate_honeycomb_circuit(HoneycombLayout(
         tile_width=tile_width,
-        tile_height=tile_width + tile_height_extra,
+        tile_height=max(1, tile_width + tile_height_extra),
         sub_rounds=sub_rounds,
         noise=0.001,
         style=style,

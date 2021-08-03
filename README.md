@@ -54,6 +54,6 @@ And you can plot data from a csv file using the `plot_data` method from `experim
 
 ```
 plot_data(
-    "test.csv",
+    read_recorded_data("test.csv"),
     title="LogLog per-sub-round error rates in periodic Honeycomb code under circuit noise")
 ```

@@ -1,6 +1,6 @@
 import numpy as np
 
-from collect_data import collect_simulated_experiment_data
+from collect_data import collect_simulated_experiment_data, read_recorded_data
 from honeycomb_layout import HoneycombLayout
 from plotting import plot_data
 
@@ -27,7 +27,7 @@ def main():
     )
 
     plot_data(
-        "test.csv",
+        read_recorded_data("test.csv"),
         title="LogLog per-sub-round error rates in periodic Honeycomb code under circuit noise")
 
 
