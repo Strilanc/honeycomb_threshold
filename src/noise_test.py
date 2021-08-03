@@ -115,13 +115,13 @@ def test_em3():
 
 
 def test_si7():
-    assert NoiseModel.SI7(0.001).noisy_circuit(stim.Circuit("""
+    assert NoiseModel.SI500(0.001).noisy_circuit(stim.Circuit("""
         QUBIT_COORDS(2, 3) 0
     """)) == stim.Circuit("""
         QUBIT_COORDS(2, 3) 0
     """)
 
-    assert NoiseModel.SI7(0.001).noisy_circuit(stim.Circuit("""
+    assert NoiseModel.SI500(0.001).noisy_circuit(stim.Circuit("""
         C_XYZ 1
         TICK
         CZ 1 2

@@ -87,6 +87,7 @@ class HoneycombLayout:
             "SD6": Standard depolarizing circuit (w/ 6 step cycle).
             "EM3": Entangling measurements circuit (w/ 3 step cycle).
             "CP3": Controlled paulis circuit (w/ 3 step cycle).
+            "SI500": Superconducting inspired (w/ ~500 nanosecond cycle).
         obs: The observable to initialize and measure fault tolerantly. Valid values are:
             "H": Horizontal observable.
             "V": Vertical observable.
@@ -107,6 +108,8 @@ class HoneycombLayout:
             return NoiseModel.PC3(self.noise)
         if self.style == "EM3":
             return NoiseModel.EM3(self.noise)
+        if self.style == "SI500":
+            return NoiseModel.SI500(self.noise)
         raise NotImplementedError(self.style)
 
     def wrap(self, c: complex) -> complex:
@@ -230,6 +233,10 @@ class HoneycombLayout:
             e.center
             for e in self.all_edges
         }))
+
+    @functools.cached_property
+    def measure_qubit_indices(self) -> Tuple[int, ...]:
+        return tuple(self.q2i[q] for q in self.measure_qubit_coords)
 
     @functools.cached_property
     def data_qubit_indices(self) -> Tuple[int, ...]:

@@ -15,9 +15,9 @@ def main():
     parser.add_argument('--job_id', type=int, required=False, help="The job id this process should handle running.")
     parser.add_argument('--jobs_count', type=int, required=False, help="The number of jobs the work is being split into, across machines.")
     args = vars(parser.parse_args())
-    out_path = args.get('--out_file', None)
-    job_id = args.get('--job_id', None)
-    jobs_count = args.get('--jobs_count', None)
+    out_path = args.get('out_file', None)
+    job_id = args.get('job_id', None)
+    jobs_count = args.get('jobs_count', None)
     if (job_id is None) != (jobs_count is None):
         raise ValueError("Must specify both or neither of --job_id, --jobs_count")
     if job_id is not None:
@@ -35,10 +35,9 @@ def main():
         )
         for p in [1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2]
         for d in [1, 2, 3, 4, 5, 6, 7]
-        for style in ["SD6", "EM3", "PC3"]
+        for style in ["SD6", "EM3", "PC3", "SI500"]
         for obs in ["H", "V"]
     ]
-    random.Random(42).shuffle(cases)
     if job_id is not None:
         cases = cases[job_id::jobs_count]
 

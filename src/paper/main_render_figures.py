@@ -14,10 +14,10 @@ def main():
     fig = plt.figure()
     gs = fig.add_gridspec(2, 4, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
+    if len(sys.argv) == 1:
+        raise ValueError("Specify csv files to include as command line arguments.")
 
-    all_data = read_recorded_data(
-        "data/232.csv",
-    )
+    all_data = read_recorded_data(*sys.argv[1:])
     keys = [
         HoneycombLayout(
             tile_width=1,
@@ -28,7 +28,7 @@ def main():
             noise=0,
         )
         for obs in ["H", "V"]
-        for style in ["SD6", "EM3", "PC3", "SI7"]
+        for style in ["SD6", "EM3", "PC3", "SI500"]
     ]
     if not all(k in keys for k in all_data.keys()):
         raise NotImplementedError(repr(all_data.keys()))
