@@ -21,7 +21,9 @@ def plot_data(data: GROUPED_RECORDED_DATA,
               out_path: Optional[str] = None,
               show: bool = False,
               fig: plt.Figure = None,
-              ax: plt.Axes = None):
+              ax: plt.Axes = None,
+              correction: Optional[int] = None,
+              legend: bool = True):
     if out_path is None and show is None and ax is None:
         show = True
 
@@ -36,7 +38,8 @@ def plot_data(data: GROUPED_RECORDED_DATA,
         g1 = data[k1]
         for k2 in sorted(g1.keys()):
             g2 = g1[k2]
-            cor = lambda p: total_error_to_per_round_error(p, rounds=k2.sub_rounds // 3)
+            c = k2.sub_rounds // 3 if correction is None else correction
+            cor = lambda p: total_error_to_per_round_error(p, rounds=c)
             xs = []
             ys = []
             x_bounds = []
@@ -57,7 +60,7 @@ def plot_data(data: GROUPED_RECORDED_DATA,
             ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
             order += 1
 
-    if data:
+    if data and legend:
         ax.legend(loc="lower right")
     ax.loglog()
 

@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from collect_data import read_recorded_data
@@ -36,18 +37,20 @@ def main():
             v = {k: all_data[k]}
         else:
             v = {}
-        ax = axs[i // 4][i % 4]
+        ax: plt.Axes = axs[i // 4][i % 4]
         plot_data(
             v,
             title="",
             ax=ax,
-            fig=fig)
+            fig=fig,
+            correction=3,
+            legend=i == 7)
         if i < 4:
             ax.set_title(k.style)
         if k.obs == "V":
-            ax.set_ylabel("HORIZONTAL Obs Per-round Error")
+            ax.set_ylabel("HORIZONTAL OBSERVABLE\nError Rate per Code Distance Cell")
         else:
-            ax.set_ylabel("VERTICAL Obs Per-round Error")
+            ax.set_ylabel("VERTICAL OBSERVABLE\nError Rate per Code Distance Cell")
     for ax in fig.get_axes():
         ax.label_outer()
 
