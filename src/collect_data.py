@@ -115,6 +115,8 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
                 break
             if num_seen_errors >= min_seen_logical_errors and cur_sample_std_dev <= max_sample_std_dev:
                 break
+            if num_seen_errors >= total_shots * 0.48 and num_seen_errors >= 20:
+                break
             num_next_shots = min(max_batch, min(2 * num_next_shots, max_shots - total_shots))
 
 

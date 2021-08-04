@@ -1,10 +1,9 @@
 import sys
 from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from collect_data import read_recorded_data
 from honeycomb_layout import HoneycombLayout
-
-sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from plotting import plot_data
 
