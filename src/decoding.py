@@ -150,17 +150,22 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
                     _iter_model(instruction.body_copy(), instruction.repeat_count, callback)
                 elif isinstance(instruction, stim.DemInstruction):
                     if instruction.type == "error":
-                        dets = []
-                        frames = []
+                        dets: List[int] = []
+                        frames: List[int] = []
                         t: stim.DemTarget
+                        p = instruction.args_copy()[0]
                         for t in instruction.targets_copy():
                             if t.is_relative_detector_id():
                                 dets.append(t.val + det_offset)
                             elif t.is_logical_observable_id():
                                 frames.append(t.val)
-                            else:
-                                raise NotImplementedError()
-                        p = instruction.args_copy()[0]
+                            elif t.is_separator():
+                                # Treat each component of a decomposed error as an independent error.
+                                # (ideally we could configure some sort of correlated analysis, but no support for it.)
+                                callback(p, dets, frames)
+                                frames = []
+                                dets = []
+                        # Handle last component.
                         callback(p, dets, frames)
                     elif instruction.type == "shift_detectors":
                         det_offset += instruction.targets_copy()[0]
@@ -175,12 +180,15 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
 
     g = nx.Graph()
     num_detectors = model.num_detectors
+    num_observables = model.num_observables
     for k in range(num_detectors):
         g.add_node(k)
     g.add_node(num_detectors, is_boundary=True)
     g.add_node(num_detectors + 1)
     for k in range(num_detectors + 1):
         g.add_edge(k, num_detectors + 1, weight=9999999999)
+    # Ensure all observables ids up to the max are mentioned.
+    g.add_edge(num_detectors, num_detectors + 1, weight=9999999999, qubit_id=list(range(num_observables)))
 
     def handle_error(p: float, dets: List[int], frame_changes: List[int]):
         if p == 0:
@@ -188,8 +196,17 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
         if len(dets) == 1:
             dets.append(num_detectors)
         if len(dets) != 2:
-            return  # Just ignore correlated error mechanisms (e.g. Y errors / XX errors)
-        g.add_edge(*dets, weight=-math.log(p), qubit_id=frame_changes)
+            # Just ignore undecomposed correlated error mechanisms (e.g. XX errors causing 4 detections).
+            return
+        if g.has_edge(*dets):
+            edge_data = g.get_edge_data(*dets)
+            old_p = edge_data["error_probability"]
+            old_frame_changes = edge_data["qubit_id"]
+            # If frame changes differ, the code has distance 2; just keep whichever was first.
+            if set(old_frame_changes) == set(frame_changes):
+                p = p * (1 - old_p) + old_p * (1 - p)
+                g.remove_edge(*dets)
+        g.add_edge(*dets, weight=math.log((1 - p) / p), qubit_id=frame_changes, error_probability=p)
 
     _iter_model(model, 1, handle_error)
 

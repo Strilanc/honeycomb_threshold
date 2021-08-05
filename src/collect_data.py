@@ -2,7 +2,6 @@ import csv
 import dataclasses
 import math
 import pathlib
-import sys
 import time
 from typing import Dict, Tuple, Optional
 
@@ -79,12 +78,12 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
         max_batch = max_shots
 
     for lay in cases:
+        circuit = generate_honeycomb_circuit(lay)
         num_seen_errors = 0
         num_next_shots = min_shots
         total_shots = 0
         while True:
             t0 = time.monotonic()
-            circuit = generate_honeycomb_circuit(lay)
             num_correct = sample_decode_count_correct(
                 num_shots=num_next_shots,
                 circuit=circuit,
