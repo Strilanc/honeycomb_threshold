@@ -48,9 +48,9 @@ def main():
         if i < 4:
             ax.set_title(k.style)
         if k.obs == "V":
-            ax.set_ylabel("HORIZONTAL OBSERVABLE\nError Rate per Code Distance Cell")
-        else:
             ax.set_ylabel("VERTICAL OBSERVABLE\nError Rate per Code Distance Cell")
+        else:
+            ax.set_ylabel("HORIZONTAL OBSERVABLE\nError Rate per Code Distance Cell")
     for ax in fig.get_axes():
         ax.label_outer()
 

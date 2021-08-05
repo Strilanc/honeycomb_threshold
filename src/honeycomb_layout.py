@@ -361,11 +361,19 @@ class HoneycombLayout:
                 category = (-row - col % 2) % 3
                 result[self.wrap(center)] = category
         return result
-    
+
+    @property
+    def data_width(self) -> int:
+        return self.tile_width * 2
+
+    @property
+    def data_height(self) -> int:
+        return self.tile_width * 6
+
     def legend_label(self):
         terms = [
             f"{self.sub_rounds // 3} rounds",
-            f"{self.tile_width * 2}x{self.tile_height * 3} data",
+            f"{self.data_width}x{self.data_height} data",
         ]
         if self.noise:
             terms.append(f"noise {self.noise:!r}")
