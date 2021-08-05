@@ -253,6 +253,13 @@ class HoneycombLayout:
         return tuple(self.q2i[q] for q in self.used_qubit_coords)
 
     @functools.cached_property
+    def num_qubits(self) -> int:
+        result = self.data_width * self.data_height
+        if self.style != "EM3":
+            result = int(result * 2.5)
+        return result
+
+    @functools.cached_property
     def q2i(self) -> Dict[complex, int]:
         return {
             q: i

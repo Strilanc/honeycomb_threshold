@@ -184,6 +184,11 @@ def test_ctx():
     assert ctx21.data_height == 6
     assert ctx21.code_distance_1qdep == 4
     assert ctx1.code_distance_1qdep == 2
+    assert ctx1.num_qubits == len(ctx1.used_qubit_indices)
+    assert ctx2.num_qubits == len(ctx2.used_qubit_indices)
+    assert ctx21.num_qubits == len(ctx21.used_qubit_indices)
+    ctx21em = HoneycombLayout(tile_width=2, tile_height=1, sub_rounds=18, noise=0.001, style="EM3", obs="V")
+    assert ctx21em.num_qubits == len(ctx21em.used_qubit_indices)
 
 
 def test_ctx_layout():

@@ -21,20 +21,22 @@ from plotting import plot_data, total_error_to_per_round_error
 import matplotlib.pyplot as plt
 
 def main():
-    # if len(sys.argv) == 1:
-    #     raise ValueError("Specify csv files to include as command line arguments.")
-    # all_data = read_recorded_data(*[str(f) for f in pathlib.Path("src/paper/data/run4_4qx6q").glob("*.csv")])
+    if len(sys.argv) == 1:
+        csvs = [str(f.absolute()) for f in pathlib.Path("data/run4_4qx6q").glob("*.csv")]
+        #raise ValueError("Specify csv files to include as command line arguments.")
+    else:
+        csvs = sys.argv[1:]
 
-    csvs = [str(f.absolute()) for f in pathlib.Path("data/run4_4qx6q").glob("*.csv")]
     all_data = read_recorded_data(*csvs)
 
-    make_lambda_combo_plot(all_data, False)
-    make_lambda_combo_plot(all_data, True)
+    make_lambda_combo_plot(all_data, 0)
+    make_lambda_combo_plot(all_data, 1)
+    make_lambda_combo_plot(all_data, 2)
 
     plt.show()
 
 
-def make_lambda_combo_plot(all_data: GROUPED_RECORDED_DATA, fits: bool):
+def make_lambda_combo_plot(all_data: GROUPED_RECORDED_DATA, t: int):
     keys = [
         HoneycombLayout(
             tile_width=1,
@@ -70,18 +72,22 @@ def make_lambda_combo_plot(all_data: GROUPED_RECORDED_DATA, fits: bool):
             v[k2] = all_data[k2]
         ax: plt.Axes = axs[i // 2]
 
-        if fits:
+        if t == 0:
             plot_lambda_line_fits(
                 v,
                 ax=ax,
                 fig=fig,
                 p2i=p2i)
-        else:
+        elif t == 1:
             plot_lambda(v, ax=ax, fig=fig)
+        else:
+            plot_quop_regions(v, style=k1.style, ax=ax, fig=fig)
 
         ax.set_title(k1.style)
-        if i == 6:
+        if i == 6 and t == 0:
             ax.legend(loc="upper right")
+        if i == 6 and t == 2:
+            ax.legend(loc="lower right")
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
@@ -106,8 +112,10 @@ class LambdaGroup:
 
             if p2 is None:
                 p2 = p1
+                print("WARNING FILLING IN FAKE DATA REMOVE")
             if p1 is None:
                 p1 = p2
+                print("WARNING FILLING IN FAKE DATA REMOVE")
 
             if p1 and p2:
                 p1 = total_error_to_per_round_error(p1, 3)
@@ -151,9 +159,47 @@ class LambdaGroup:
 
     def projected_required_qubit_count(self, target_error: float, style: str) -> int:
         d = int(math.ceil(self.projected_distance(target_error)))
-        lay = HoneycombLayout(tile_width=d * 2, tile_height=d, sub_rounds=1, style=style, obs="H", noise=0)
-        return len(lay.used_qubit_indices)
+        u = int(math.ceil(d / 4))
+        lay = HoneycombLayout(tile_width=u * 2, tile_height=u, sub_rounds=1, style=style, obs="H", noise=0)
+        assert lay.code_distance_1qdep in [d, d + 1, d + 2, d + 3]
+        return lay.num_qubits
 
+
+def plot_quop_regions(data: GROUPED_RECORDED_DATA,
+                      *,
+                      style: str,
+                      fig: plt.Figure = None,
+                      ax: plt.Axes = None):
+    assert (fig is None) == (ax is None)
+    if fig is None:
+        fig = plt.figure()
+        ax = fig.add_subplot()
+
+    groups = LambdaGroup.groups_from_data(data)
+    ps = [1e-6, 1e-9, 1e-12]
+    labels = ["megaquop regime", "gigaquop regime", "teraquop+ regime"]
+    curves = [([], []) for _ in range(4)]
+    y_max = 1e5
+
+    for noise in sorted(groups.keys()):
+        group = groups[noise]
+        r = group.linear_fit_d_to_log_err
+        if r.slope < -0.02:
+            curves[3][0].append(noise)
+            curves[3][1].append(y_max)
+            for k, p in enumerate(ps):
+                q = group.projected_required_qubit_count(p, style=style)
+                curves[k][0].append(noise)
+                curves[k][1].append(q)
+    for k in range(3):
+        ax.plot(curves[k][0], curves[k][1], label=labels[k])
+        ax.fill_between(curves[k][0], curves[k][1], curves[k + 1][1])
+    ax.loglog()
+    ax.set_xlim(1e-4, 1e-2)
+    ax.set_ylim(1e2, y_max)
+    ax.set_xlabel("Noise")
+    ax.set_ylabel("Physical qubits per logical qubit")
+    ax.grid()
 
 
 def plot_lambda_line_fits(data: GROUPED_RECORDED_DATA,
@@ -206,16 +252,17 @@ def plot_lambda(data: GROUPED_RECORDED_DATA,
     for noise in sorted(groups.keys()):
         group = groups[noise]
         r = group.linear_fit_d_to_log_err
+        print(noise, r.slope)
         if r.slope != 0:
             lambda_xs.append(noise)
-            lambda_ys.append(1 / math.exp(r.slope))
+            lambda_ys.append(1 / math.exp(r.slope)**2)
 
     ax.set_xlabel("Noise")
-    ax.set_ylabel("1 / λ")
+    ax.set_ylabel("Suppression per Code Step (λ)")
     ax.semilogx()
     ax.plot(lambda_xs, lambda_ys)
     ax.set_xlim(1e-4, 1e-2)
-    ax.set_ylim(1, 6)
+    ax.set_ylim(1, 40)
     ax.grid()
 
 
