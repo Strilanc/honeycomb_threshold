@@ -367,8 +367,12 @@ class HoneycombLayout:
         return self.tile_width * 2
 
     @property
+    def code_distance_1qdep(self) -> int:
+        return min(self.data_width, self.data_height // 3 * 2)
+
+    @property
     def data_height(self) -> int:
-        return self.tile_width * 6
+        return self.tile_height * 6
 
     def legend_label(self):
         terms = [

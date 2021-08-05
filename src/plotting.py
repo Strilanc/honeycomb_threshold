@@ -1,6 +1,7 @@
 from typing import Optional
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 from collect_data import read_recorded_data, GROUPED_RECORDED_DATA
 
@@ -23,7 +24,8 @@ def plot_data(data: GROUPED_RECORDED_DATA,
               fig: plt.Figure = None,
               ax: plt.Axes = None,
               correction: Optional[int] = None,
-              legend: bool = True):
+              legend: bool = True,
+              focus_on_threshold: bool = True):
     if out_path is None and show is None and ax is None:
         show = True
 
@@ -32,7 +34,7 @@ def plot_data(data: GROUPED_RECORDED_DATA,
         fig = plt.figure()
         ax = fig.add_subplot()
 
-    markers = "ov*sp^<>8PhH+xXDd|"
+    markers = "ov*sp^<>8PhH+xXDd|" * 100
     order = 0
     for k1 in sorted(data.keys()):
         g1 = data[k1]
@@ -72,18 +74,26 @@ def plot_data(data: GROUPED_RECORDED_DATA,
             k += 1
         assert p - int(p) < 1e-4
         return f"{int(p)}e-{k}"
-    ticks_y = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if k*10**-p <= 0.5]
-    ticks_x = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if k*10**-p <= 0.5]
+    if focus_on_threshold:
+        x_min, x_max = 5e-4, 1e-2
+        y_min, y_max = 1e-2, 1e-1
+    else:
+        x_min, x_max = 1e-4, 0.5
+        y_min, y_max = 1e-8, 0.5
+    ticks_x = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if x_min <= k*10**-p <= x_max]
+    ticks_y = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if y_min <= k*10**-p <= y_max]
+    ax.set_ylabel("Per-round Logical Error Rate")
+    ax.set_xlabel("Noise (p)")
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.set_title(title)
+    ax.grid()
     ax.set_xticks([x for x in ticks_x])
     ax.set_yticks([y for y in ticks_y])
     ax.set_xticklabels([format_tick(x) for x in ticks_x], rotation=70)
-    ax.set_xlim(1e-4, 0.5)
-    ax.set_ylim(1e-8, 0.5)
     ax.set_yticklabels([format_tick(y) for y in ticks_y])
-    ax.set_ylabel("Per-round Logical Error Rate")
-    ax.set_title(title)
-    ax.set_xlabel("Noise (p)")
-    ax.grid()
+    ax.xaxis.set_minor_formatter(FuncFormatter(lambda *args: ""))
+    ax.yaxis.set_minor_formatter(FuncFormatter(lambda *args: ""))
     if out_path is not None:
         fig.tight_layout()
         fig.savefig(out_path)

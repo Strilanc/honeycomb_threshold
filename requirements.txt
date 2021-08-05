@@ -3,5 +3,6 @@ networkx
 numpy
 pymatching
 pytest
+scipy
 stim
 stimcirq

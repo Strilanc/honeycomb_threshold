@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 def main():
     fig = plt.figure()
     gs = fig.add_gridspec(2, 4, hspace=0.05, wspace=0.05)
-    axs = gs.subplots(sharex=True, sharey=True)
+    axs = gs.subplots()
     if len(sys.argv) == 1:
         raise ValueError("Specify csv files to include as command line arguments.")
+    focus_on_threshold_crossing = False
 
     all_data = read_recorded_data(*sys.argv[1:])
     keys = [
@@ -44,7 +45,8 @@ def main():
             ax=ax,
             fig=fig,
             correction=3,
-            legend=i == 7)
+            legend=i == 7,
+            focus_on_threshold=focus_on_threshold_crossing)
         if i < 4:
             ax.set_title(k.style)
         if k.obs == "V":

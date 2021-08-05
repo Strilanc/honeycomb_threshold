@@ -175,6 +175,16 @@ def test_ctx():
     )
     assert len(ctx1.all_edges) == len(ctx1.round_edges(0)) * 3 == len(ctx1.round_edges(2)) * 3
 
+    assert ctx1.data_height == 6
+    assert ctx1.data_width == 2
+    assert ctx2.data_height == 12
+    assert ctx2.data_width == 4
+    ctx21 = HoneycombLayout(tile_width=2, tile_height=1, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    assert ctx21.data_width == 4
+    assert ctx21.data_height == 6
+    assert ctx21.code_distance_1qdep == 4
+    assert ctx1.code_distance_1qdep == 2
+
 
 def test_ctx_layout():
     ctx = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=20, noise=0.001, style="SD6", obs="V")
