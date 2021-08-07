@@ -24,7 +24,7 @@ def main():
         if not (0 < jobs_count and 0 <= job_id < jobs_count):
             raise ValueError("Need 0 < jobs_count and 0 <= job_id < jobs_count")
 
-    SPREAD = 4
+    SPREAD = 1
     cases = [
         HoneycombLayout(
             noise=p,
@@ -38,7 +38,7 @@ def main():
             0.001,
         ]
         for u in [2, 3]
-        for style in ["PC3"]
+        for style in ["EM3_CORR"]
         for obs in ["H", "V"]
     ] * SPREAD
     if job_id is not None:
