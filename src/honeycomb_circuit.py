@@ -418,7 +418,7 @@ def _sub_round_measurements_and_detectors(
 
     # Measure the ancillae.
     if do_measurement:
-        if False and lay.style == "EM3_CORR":
+        if lay.style == "EM3_CORR":
             triples = []
             for e in round_edges:
                 triples.append([lay.q2i[q] for q in [e.left, e.right, e.center]])
