@@ -35,7 +35,7 @@ def main():
             obs=obs,
         )
         for p in [
-            0.001,
+            0.01,
         ]
         for u in [2, 3]
         for style in ["EM3_CORR"]
