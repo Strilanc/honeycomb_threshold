@@ -9,10 +9,10 @@ from honeycomb_layout import HoneycombLayout
 
 @pytest.mark.parametrize('tile_width,tile_height_extra,sub_rounds,obs,style', itertools.product(
     range(1, 5),
-    range(2),
+    [-1, 0, +1],
     range(1, 24),
     ["H", "V"],
-    ["PC3", "SD6", "EM3"],
+    ["PC3", "SD6", "EM3", "SI500"],
 ))
 def test_circuit_has_decomposing_error_model(
         tile_width: int,
@@ -20,9 +20,11 @@ def test_circuit_has_decomposing_error_model(
         sub_rounds: int,
         obs: str,
         style: str):
+    if style == "SI500" and sub_rounds % 3 != 0:
+        return
     circuit = generate_honeycomb_circuit(HoneycombLayout(
         tile_width=tile_width,
-        tile_height=tile_width + tile_height_extra,
+        tile_height=max(1, tile_width + tile_height_extra),
         sub_rounds=sub_rounds,
         noise=0.001,
         style=style,
@@ -700,4 +702,299 @@ def test_circuit_details_EM3_h_obs():
         DETECTOR(0, 0, 0) rec[-30] rec[-28] rec[-25] rec[-24] rec[-23] rec[-20] rec[-12] rec[-11] rec[-7] rec[-6] rec[-5] rec[-1]
         DETECTOR(2, 3, 0) rec[-29] rec[-27] rec[-26] rec[-22] rec[-21] rec[-19] rec[-10] rec[-9] rec[-8] rec[-4] rec[-3] rec[-2]
         OBSERVABLE_INCLUDE(1) rec[-11] rec[-5]
+    """)
+
+
+def test_circuit_details_si500():
+    actual = generate_honeycomb_circuit(HoneycombLayout(
+        tile_width=1,
+        tile_height=1,
+        sub_rounds=3 * 300,
+        noise=0.001,
+        style="SI500",
+        obs="V",
+    ))
+    cleaned = stim.Circuit(str(actual))
+    assert cleaned == stim.Circuit("""
+        QUBIT_COORDS(1, 0) 0
+        QUBIT_COORDS(1, 1) 1
+        QUBIT_COORDS(1, 2) 2
+        QUBIT_COORDS(1, 3) 3
+        QUBIT_COORDS(1, 4) 4
+        QUBIT_COORDS(1, 5) 5
+        QUBIT_COORDS(3, 0) 6
+        QUBIT_COORDS(3, 1) 7
+        QUBIT_COORDS(3, 2) 8
+        QUBIT_COORDS(3, 3) 9
+        QUBIT_COORDS(3, 4) 10
+        QUBIT_COORDS(3, 5) 11
+        QUBIT_COORDS(0, 1) 12
+        QUBIT_COORDS(0, 3) 13
+        QUBIT_COORDS(0, 5) 14
+        QUBIT_COORDS(1, 0.5) 15
+        QUBIT_COORDS(1, 1.5) 16
+        QUBIT_COORDS(1, 2.5) 17
+        QUBIT_COORDS(1, 3.5) 18
+        QUBIT_COORDS(1, 4.5) 19
+        QUBIT_COORDS(1, 5.5) 20
+        QUBIT_COORDS(2, 0) 21
+        QUBIT_COORDS(2, 2) 22
+        QUBIT_COORDS(2, 4) 23
+        QUBIT_COORDS(3, 0.5) 24
+        QUBIT_COORDS(3, 1.5) 25
+        QUBIT_COORDS(3, 2.5) 26
+        QUBIT_COORDS(3, 3.5) 27
+        QUBIT_COORDS(3, 4.5) 28
+        QUBIT_COORDS(3, 5.5) 29
+
+        R 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        X_ERROR(0.002) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        TICK
+
+        C_ZYX 0 2 4 7 9 11
+        H 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 1 3 5 6 8 10
+        TICK
+
+        # X sub-round part 1
+        C_ZYX 1 3 5 6 8 10
+        CZ 9 13 2 16 4 19 0 21 7 25 11 28
+        DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+        DEPOLARIZE2(0.001) 9 13 2 16 4 19 0 21 7 25 11 28
+        DEPOLARIZE1(0.0001) 12 14 15 17 18 20 22 23 24 26 27 29
+        TICK
+
+        # X sub-round part 2
+        C_ZYX 0 2 4 7 9 11
+        CZ 3 13 1 16 5 19 6 21 8 25 10 28
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11
+        DEPOLARIZE2(0.001) 3 13 1 16 5 19 6 21 8 25 10 28
+        DEPOLARIZE1(0.0001) 12 14 15 17 18 20 22 23 24 26 27 29
+        TICK
+
+        # Y sub-round part 1
+        C_ZYX 1 3 5 6 8 10
+        CZ 7 12 2 17 0 20 4 23 9 26 11 29
+        DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+        DEPOLARIZE2(0.001) 7 12 2 17 0 20 4 23 9 26 11 29
+        DEPOLARIZE1(0.0001) 13 14 15 16 18 19 21 22 24 25 27 28
+        TICK
+
+        # Y sub-round part 2
+        C_ZYX 0 2 4 7 9 11
+        CZ 1 12 3 17 5 20 10 23 8 26 6 29
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11
+        DEPOLARIZE2(0.001) 1 12 3 17 5 20 10 23 8 26 6 29
+        DEPOLARIZE1(0.0001) 13 14 15 16 18 19 21 22 24 25 27 28
+        TICK
+
+        # Z sub-round part 1
+        C_ZYX 1 3 5 6 8 10
+        CZ 11 14 0 15 4 18 2 22 7 24 9 27
+        DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+        DEPOLARIZE2(0.001) 11 14 0 15 4 18 2 22 7 24 9 27
+        DEPOLARIZE1(0.0001) 12 13 16 17 19 20 21 23 25 26 28 29
+        TICK
+
+        # Z sub-round part 2
+        CZ 5 14 1 15 3 18 8 22 6 24 10 27
+        DEPOLARIZE2(0.001) 5 14 1 15 3 18 8 22 6 24 10 27
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11 12 13 16 17 19 20 21 23 25 26 28 29
+        TICK
+
+        H 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.0001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 0 1 2 3 4 5 6 7 8 9 10 11
+        TICK
+
+        # Finish first round.
+        X_ERROR(0.005) 13 16 19 21 25 28 12 17 20 23 26 29 14 15 18 22 24 27
+        M 13 16 19 21 25 28
+        OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+        SHIFT_COORDS(0, 0, 1)
+        M 12 17 20 23 26 29
+        OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+        DETECTOR(0, 2, 0) rec[-12] rec[-11] rec[-8] rec[-6] rec[-5] rec[-2]
+        DETECTOR(2, 5, 0) rec[-10] rec[-9] rec[-7] rec[-4] rec[-3] rec[-1]
+        SHIFT_COORDS(0, 0, 1)
+        M 14 15 18 22 24 27
+        OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+        SHIFT_COORDS(0, 0, 1)
+        DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
+        DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        TICK
+
+        R 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        X_ERROR(0.002) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
+        DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        TICK
+
+        C_ZYX 0 2 4 7 9 11
+        H 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 1 3 5 6 8 10
+        TICK
+
+        # X sub-round part 1
+        C_ZYX 1 3 5 6 8 10
+        CZ 9 13 2 16 4 19 0 21 7 25 11 28
+        DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+        DEPOLARIZE2(0.001) 9 13 2 16 4 19 0 21 7 25 11 28
+        DEPOLARIZE1(0.0001) 12 14 15 17 18 20 22 23 24 26 27 29
+        TICK
+
+        # X sub-round part 2
+        C_ZYX 0 2 4 7 9 11
+        CZ 3 13 1 16 5 19 6 21 8 25 10 28
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11
+        DEPOLARIZE2(0.001) 3 13 1 16 5 19 6 21 8 25 10 28
+        DEPOLARIZE1(0.0001) 12 14 15 17 18 20 22 23 24 26 27 29
+        TICK
+
+        # Y sub-round part 1
+        C_ZYX 1 3 5 6 8 10
+        CZ 7 12 2 17 0 20 4 23 9 26 11 29
+        DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+        DEPOLARIZE2(0.001) 7 12 2 17 0 20 4 23 9 26 11 29
+        DEPOLARIZE1(0.0001) 13 14 15 16 18 19 21 22 24 25 27 28
+        TICK
+
+        # Y sub-round part 2
+        C_ZYX 0 2 4 7 9 11
+        CZ 1 12 3 17 5 20 10 23 8 26 6 29
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11
+        DEPOLARIZE2(0.001) 1 12 3 17 5 20 10 23 8 26 6 29
+        DEPOLARIZE1(0.0001) 13 14 15 16 18 19 21 22 24 25 27 28
+        TICK
+
+        # Z sub-round part 1
+        C_ZYX 1 3 5 6 8 10
+        CZ 11 14 0 15 4 18 2 22 7 24 9 27
+        DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+        DEPOLARIZE2(0.001) 11 14 0 15 4 18 2 22 7 24 9 27
+        DEPOLARIZE1(0.0001) 12 13 16 17 19 20 21 23 25 26 28 29
+        TICK
+
+        # Z sub-round part 2
+        CZ 5 14 1 15 3 18 8 22 6 24 10 27
+        DEPOLARIZE2(0.001) 5 14 1 15 3 18 8 22 6 24 10 27
+        DEPOLARIZE1(0.0001) 0 2 4 7 9 11 12 13 16 17 19 20 21 23 25 26 28 29
+        TICK
+
+        H 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.0001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 0 1 2 3 4 5 6 7 8 9 10 11
+        TICK
+
+        # Finish second round.
+        X_ERROR(0.005) 13 16 19 21 25 28 12 17 20 23 26 29 14 15 18 22 24 27
+        M 13 16 19 21 25 28
+        OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+        DETECTOR(0, 4, 0) rec[-24] rec[-22] rec[-19] rec[-12] rec[-10] rec[-7] rec[-6] rec[-4] rec[-1]
+        DETECTOR(2, 1, 0) rec[-23] rec[-21] rec[-20] rec[-11] rec[-9] rec[-8] rec[-5] rec[-3] rec[-2]
+        SHIFT_COORDS(0, 0, 1)
+        M 12 17 20 23 26 29
+        OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+        DETECTOR(0, 2, 0) rec[-30] rec[-29] rec[-26] rec[-24] rec[-23] rec[-20] rec[-12] rec[-11] rec[-8] rec[-6] rec[-5] rec[-2]
+        DETECTOR(2, 5, 0) rec[-28] rec[-27] rec[-25] rec[-22] rec[-21] rec[-19] rec[-10] rec[-9] rec[-7] rec[-4] rec[-3] rec[-1]
+        SHIFT_COORDS(0, 0, 1)
+        M 14 15 18 22 24 27
+        OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+        DETECTOR(0, 0, 0) rec[-30] rec[-28] rec[-25] rec[-24] rec[-23] rec[-20] rec[-12] rec[-10] rec[-7] rec[-6] rec[-5] rec[-2]
+        DETECTOR(2, 3, 0) rec[-29] rec[-27] rec[-26] rec[-22] rec[-21] rec[-19] rec[-11] rec[-9] rec[-8] rec[-4] rec[-3] rec[-1]
+        SHIFT_COORDS(0, 0, 1)
+        DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
+        DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        TICK
+
+        # Now in stable state for cross-round comparisons. Use a loop.
+        REPEAT 298 {
+            R 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+            X_ERROR(0.002) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+            DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
+            DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+            TICK
+
+            C_ZYX 0 2 4 7 9 11
+            H 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+            DEPOLARIZE1(0.0001) 0 2 4 7 9 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 1 3 5 6 8 10
+            TICK
+
+            C_ZYX 1 3 5 6 8 10
+            CZ 9 13 2 16 4 19 0 21 7 25 11 28
+            DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+            DEPOLARIZE2(0.001) 9 13 2 16 4 19 0 21 7 25 11 28
+            DEPOLARIZE1(0.0001) 12 14 15 17 18 20 22 23 24 26 27 29
+            TICK
+
+            C_ZYX 0 2 4 7 9 11
+            CZ 3 13 1 16 5 19 6 21 8 25 10 28
+            DEPOLARIZE1(0.0001) 0 2 4 7 9 11
+            DEPOLARIZE2(0.001) 3 13 1 16 5 19 6 21 8 25 10 28
+            DEPOLARIZE1(0.0001) 12 14 15 17 18 20 22 23 24 26 27 29
+            TICK
+
+            C_ZYX 1 3 5 6 8 10
+            CZ 7 12 2 17 0 20 4 23 9 26 11 29
+            DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+            DEPOLARIZE2(0.001) 7 12 2 17 0 20 4 23 9 26 11 29
+            DEPOLARIZE1(0.0001) 13 14 15 16 18 19 21 22 24 25 27 28
+            TICK
+
+            C_ZYX 0 2 4 7 9 11
+            CZ 1 12 3 17 5 20 10 23 8 26 6 29
+            DEPOLARIZE1(0.0001) 0 2 4 7 9 11
+            DEPOLARIZE2(0.001) 1 12 3 17 5 20 10 23 8 26 6 29
+            DEPOLARIZE1(0.0001) 13 14 15 16 18 19 21 22 24 25 27 28
+            TICK
+
+            C_ZYX 1 3 5 6 8 10
+            CZ 11 14 0 15 4 18 2 22 7 24 9 27
+            DEPOLARIZE1(0.0001) 1 3 5 6 8 10
+            DEPOLARIZE2(0.001) 11 14 0 15 4 18 2 22 7 24 9 27
+            DEPOLARIZE1(0.0001) 12 13 16 17 19 20 21 23 25 26 28 29
+            TICK
+
+            CZ 5 14 1 15 3 18 8 22 6 24 10 27
+            DEPOLARIZE2(0.001) 5 14 1 15 3 18 8 22 6 24 10 27
+            DEPOLARIZE1(0.0001) 0 2 4 7 9 11 12 13 16 17 19 20 21 23 25 26 28 29
+            TICK
+
+            H 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+            DEPOLARIZE1(0.0001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 0 1 2 3 4 5 6 7 8 9 10 11
+            TICK
+
+            X_ERROR(0.005) 13 16 19 21 25 28 12 17 20 23 26 29 14 15 18 22 24 27
+            M 13 16 19 21 25 28
+            OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+            DETECTOR(0, 4, 0) rec[-30] rec[-28] rec[-25] rec[-24] rec[-22] rec[-19] rec[-12] rec[-10] rec[-7] rec[-6] rec[-4] rec[-1]
+            DETECTOR(2, 1, 0) rec[-29] rec[-27] rec[-26] rec[-23] rec[-21] rec[-20] rec[-11] rec[-9] rec[-8] rec[-5] rec[-3] rec[-2]
+            SHIFT_COORDS(0, 0, 1)
+            M 12 17 20 23 26 29
+            OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+            DETECTOR(0, 2, 0) rec[-30] rec[-29] rec[-26] rec[-24] rec[-23] rec[-20] rec[-12] rec[-11] rec[-8] rec[-6] rec[-5] rec[-2]
+            DETECTOR(2, 5, 0) rec[-28] rec[-27] rec[-25] rec[-22] rec[-21] rec[-19] rec[-10] rec[-9] rec[-7] rec[-4] rec[-3] rec[-1]
+            SHIFT_COORDS(0, 0, 1)
+            M 14 15 18 22 24 27
+            OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
+            DETECTOR(0, 0, 0) rec[-30] rec[-28] rec[-25] rec[-24] rec[-23] rec[-20] rec[-12] rec[-10] rec[-7] rec[-6] rec[-5] rec[-2]
+            DETECTOR(2, 3, 0) rec[-29] rec[-27] rec[-26] rec[-22] rec[-21] rec[-19] rec[-11] rec[-9] rec[-8] rec[-4] rec[-3] rec[-1]
+            SHIFT_COORDS(0, 0, 1)
+            DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
+            DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+            TICK
+        }
+
+        # Data measurement.
+        X_ERROR(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        M 0 1 2 3 4 5 6 7 8 9 10 11
+        DETECTOR(0, 5, 0) rec[-18] rec[-7] rec[-1]
+        DETECTOR(1, 0.5, 0) rec[-17] rec[-12] rec[-11]
+        DETECTOR(1, 3.5, 0) rec[-16] rec[-9] rec[-8]
+        DETECTOR(2, 2, 0) rec[-15] rec[-10] rec[-4]
+        DETECTOR(3, 0.5, 0) rec[-14] rec[-6] rec[-5]
+        DETECTOR(3, 3.5, 0) rec[-13] rec[-3] rec[-2]
+        DETECTOR(0, 2, 0) rec[-30] rec[-29] rec[-26] rec[-24] rec[-23] rec[-20] rec[-11] rec[-10] rec[-9] rec[-5] rec[-4] rec[-3]
+        DETECTOR(2, 5, 0) rec[-28] rec[-27] rec[-25] rec[-22] rec[-21] rec[-19] rec[-12] rec[-8] rec[-7] rec[-6] rec[-2] rec[-1]
+        OBSERVABLE_INCLUDE(0) rec[-11] rec[-10] rec[-8] rec[-7]
+        DEPOLARIZE1(0.0001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.005) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
     """)

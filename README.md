@@ -34,12 +34,13 @@ collect_simulated_experiment_data(
     *[
         HoneycombLayout(
             noise=p,
-            tile_width=d,
+            tile_width=d * 2,
             tile_height=d,
             sub_rounds=30,
-            style="SD6",
+            style="EM3",
+            obs="H",
         )
-        for d in [2, 3, 4]
+        for d in [1, 2]
         for p in [0.001, 0.002, 0.003]
     ],
     out_path="test.csv",
@@ -54,6 +55,7 @@ And you can plot data from a csv file using the `plot_data` method from `experim
 
 ```
 plot_data(
-    "test.csv",
-    title="LogLog per-sub-round error rates in periodic Honeycomb code under circuit noise")
+    read_recorded_data("test.csv"),
+    title="LogLog per-sub-round error rates in periodic Honeycomb code under circuit noise",
+    show=True)
 ```

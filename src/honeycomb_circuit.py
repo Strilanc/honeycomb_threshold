@@ -34,6 +34,8 @@ def generate_honeycomb_circuit(lay: HoneycombLayout) -> stim.Circuit:
         result += generate_rounds_pc3(lay, mtrack)
     elif lay.style == "EM3":
         result += generate_rounds_em3(lay, mtrack)
+    elif lay.style == "SI500":
+        result += generate_rounds_si500(lay, mtrack)
     else:
         raise NotImplementedError(lay.style)
     result += fault_tolerant_measurement(lay, mtrack)
@@ -262,6 +264,53 @@ def generate_rounds_em3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
     return result
 
 
+def generate_cycle_si500(subround: int, lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
+    circuit = stim.Circuit()
+    if subround > 0:
+        circuit.append_operation("R", lay.measure_qubit_indices)
+        circuit.append_operation("TICK", [])
+
+    circuit.append_operation("C_ZYX", lay.data_qubit_indices_1st)
+    circuit.append_operation("H", lay.measure_qubit_indices)
+    circuit.append_operation("TICK", [])
+
+    for k in range(3):
+        circuit.append_operation("C_ZYX", lay.data_qubit_indices_2nd)
+        circuit.append_operation("CZ", [lay.q2i[q] for e in lay.round_edges(k) for q in [e.left, e.center]])
+        circuit.append_operation("TICK", [])
+
+        if k < 2:
+            circuit.append_operation("C_ZYX", lay.data_qubit_indices_1st)
+        circuit.append_operation("CZ", [lay.q2i[q] for e in lay.round_edges(k) for q in [e.right, e.center]])
+        circuit.append_operation("TICK", [])
+
+    circuit.append_operation("H", lay.measure_qubit_indices)
+    circuit.append_operation("TICK", [])
+
+    for k in range(3):
+        circuit += _sub_round_measurements_and_detectors(lay=lay, mtrack=mtrack, sub_round=subround + k)
+    circuit.append_operation("TICK", [])
+
+    return circuit
+
+
+def generate_rounds_si500(lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
+    n = lay.sub_rounds
+    if n == 0:
+        raise NotImplementedError("Zero rounds.")
+    if n % 3 != 0:
+        raise NotImplementedError(n)
+
+    circuit = stim.Circuit()
+    circuit += generate_cycle_si500(0, lay, mtrack)
+    if n > 3:
+        circuit += generate_cycle_si500(3, lay, mtrack)
+    if n > 6:
+        circuit += generate_cycle_si500(6, lay, mtrack) * ((n - 6) // 3)
+
+    return circuit
+
+
 def _sd6_pipeline_step(lay: HoneycombLayout, sub_round: int, mtrack: MeasurementTracker) -> stim.Circuit:
     _, b1 = _sub_round_2q_ops(lay, sub_round)
     a2, _ = _sub_round_2q_ops(lay, sub_round + 1)
@@ -330,13 +379,13 @@ def _sub_round_measurements_and_detectors(
     """
 
     xor_vs_previous = lay.style == "PC3"
-    ancilla_measurement = lay.style != "EM3"
+    do_measurement = lay.style != "EM3"
 
     round_edges = lay.round_edges(sub_round)
     moment = stim.Circuit()
 
     # Measure the ancillae.
-    if ancilla_measurement:
+    if do_measurement:
         moment.append_operation("M", [lay.q2i[edge.center] for edge in round_edges])
     mtrack.add_measurements(*(('1/2', e) for e in round_edges))
     # Reconstruct edge measurements using previous round if needed due to non-demo measurement.

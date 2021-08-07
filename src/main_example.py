@@ -1,6 +1,4 @@
-import numpy as np
-
-from collect_data import collect_simulated_experiment_data
+from collect_data import collect_simulated_experiment_data, read_recorded_data
 from honeycomb_layout import HoneycombLayout
 from plotting import plot_data
 
@@ -10,13 +8,13 @@ def main():
         *[
             HoneycombLayout(
                 noise=p,
-                tile_width=d,
+                tile_width=d * 2,
                 tile_height=d,
                 sub_rounds=30,
                 style="EM3",
-                obs="V",
+                obs="H",
             )
-            for d in [2, 3, 4]
+            for d in [1, 2]
             for p in [0.001, 0.002, 0.003]
         ],
         out_path="test.csv",
@@ -27,8 +25,9 @@ def main():
     )
 
     plot_data(
-        "test.csv",
-        title="LogLog per-sub-round error rates in periodic Honeycomb code under circuit noise")
+        read_recorded_data("test.csv"),
+        title="LogLog per-sub-round error rates in periodic Honeycomb code under circuit noise",
+        show=True)
 
 
 if __name__ == '__main__':

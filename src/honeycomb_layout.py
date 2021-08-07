@@ -1,7 +1,7 @@
 """This file contains data and utility methods for working with the honeycomb layout."""
 
 import functools
-from dataclasses import dataclass
+import dataclasses
 from typing import List, Dict, Iterable, Tuple
 
 from noise import NoiseModel
@@ -40,7 +40,7 @@ class Edge:
         return hash(self._key())
 
 
-@dataclass
+@dataclasses.dataclass
 class EdgeType:
     hex_to_hex_delta: complex
     hex_to_qubit_delta: complex
@@ -73,37 +73,32 @@ SECOND_EDGES_AROUND_HEX: List[Tuple[complex, complex]] = [
 ]
 
 
+@dataclasses.dataclass(frozen=True, unsafe_hash=True, order=True)
 class HoneycombLayout:
-    """Computes information about the honeycomb code layout, such as hex face locations."""
+    """Computes information about the honeycomb code layout, such as hex face locations.
 
-    def __init__(self,
-                 tile_width: int,
-                 tile_height: int,
-                 sub_rounds: int,
-                 noise: float,
-                 style: str,
-                 obs: str):
-        """
-        Args:
-            tile_width: The number of times to horizontally repeat the tiling unit of the code.
-            tile_height: The number of times to vertically repeat the tiling unit of the code.
-            sub_rounds: The number of edge parity measurements to perform (counting X, Y, and Z
-                separately).
-            noise: Determines the strength of noisy operations, relative to the error model.
-            style: Determines details of the circuit layout and the error model used. Valid values are
-                "SD6": Standard depolarizing circuit (w/ 6 step cycle).
-                "EM3": Entangling measurements circuit (w/ 3 step cycle).
-                "CP3": Controlled paulis circuit (w/ 3 step cycle).
-            obs: The observable to initialize and measure fault tolerantly. Valid values are:
-                "H": Horizontal observable.
-                "V": Vertical observable.
-        """
-        self.tile_width = tile_width
-        self.tile_height = tile_height
-        self.sub_rounds = sub_rounds
-        self.noise = noise
-        self.style = style
-        self.obs = obs
+    Attributes:
+        tile_width: The number of times to horizontally repeat the tiling unit of the code.
+        tile_height: The number of times to vertically repeat the tiling unit of the code.
+        sub_rounds: The number of edge parity measurements to perform (counting X, Y, and Z
+            separately).
+        noise: Determines the strength of noisy operations, relative to the error model.
+        style: Determines details of the circuit layout and the error model used. Valid values are
+            "SD6": Standard depolarizing circuit (w/ 6 step cycle).
+            "EM3": Entangling measurements circuit (w/ 3 step cycle).
+            "CP3": Controlled paulis circuit (w/ 3 step cycle).
+            "SI500": Superconducting inspired (w/ ~500 nanosecond cycle).
+        obs: The observable to initialize and measure fault tolerantly. Valid values are:
+            "H": Horizontal observable.
+            "V": Vertical observable.
+    """
+
+    tile_width: int
+    tile_height: int
+    sub_rounds: int
+    style: str
+    obs: str
+    noise: float
 
     @functools.cached_property
     def noise_model(self) -> NoiseModel:
@@ -113,6 +108,8 @@ class HoneycombLayout:
             return NoiseModel.PC3(self.noise)
         if self.style == "EM3":
             return NoiseModel.EM3(self.noise)
+        if self.style == "SI500":
+            return NoiseModel.SI500(self.noise)
         raise NotImplementedError(self.style)
 
     def wrap(self, c: complex) -> complex:
@@ -180,7 +177,7 @@ class HoneycombLayout:
         c, = set(obs_pattern) - {'_'}
         return c, [
             q
-            for c, q in zip(obs_pattern * self.tile_height, self.obs_h_qubits)
+            for c, q in zip(obs_pattern * self.tile_width, self.obs_h_qubits)
             if c != "_"
         ]
 
@@ -238,6 +235,10 @@ class HoneycombLayout:
         }))
 
     @functools.cached_property
+    def measure_qubit_indices(self) -> Tuple[int, ...]:
+        return tuple(self.q2i[q] for q in self.measure_qubit_coords)
+
+    @functools.cached_property
     def data_qubit_indices(self) -> Tuple[int, ...]:
         return tuple(self.q2i[q] for q in self.data_qubit_coords)
 
@@ -250,6 +251,13 @@ class HoneycombLayout:
     @functools.cached_property
     def used_qubit_indices(self) -> Tuple[int, ...]:
         return tuple(self.q2i[q] for q in self.used_qubit_coords)
+
+    @functools.cached_property
+    def num_qubits(self) -> int:
+        result = self.data_width * self.data_height
+        if self.style != "EM3":
+            result = int(result * 2.5)
+        return result
 
     @functools.cached_property
     def q2i(self) -> Dict[complex, int]:
@@ -360,6 +368,28 @@ class HoneycombLayout:
                 category = (-row - col % 2) % 3
                 result[self.wrap(center)] = category
         return result
+
+    @property
+    def data_width(self) -> int:
+        return self.tile_width * 2
+
+    @property
+    def code_distance_1qdep(self) -> int:
+        return min(self.data_width, self.data_height // 3 * 2)
+
+    @property
+    def data_height(self) -> int:
+        return self.tile_height * 6
+
+    def legend_label(self):
+        terms = [
+            f"{self.sub_rounds // 3} rounds",
+            f"{self.data_width}x{self.data_height} data",
+        ]
+        if self.noise:
+            terms.append(f"noise {self.noise:!r}")
+        return ", ".join(terms)
+
 
 
 def sorted_complex(xs: Iterable[complex]) -> List[complex]:

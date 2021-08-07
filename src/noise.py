@@ -57,7 +57,7 @@ class NoiseModel:
         )
 
     @staticmethod
-    def SI7(p: float) -> 'NoiseModel':
+    def SI500(p: float) -> 'NoiseModel':
         return NoiseModel(
             any_clifford_1=p / 10,
             idle=p / 10,
