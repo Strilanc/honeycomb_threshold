@@ -37,8 +37,8 @@ def main():
         for p in [
             0.01,
         ]
-        for u in [2, 3]
-        for style in ["EM3_CORR"]
+        for u in [1, 2]
+        for style in ["EM3_CORR", "PC3"]
         for obs in ["H", "V"]
     ] * SPREAD
     if job_id is not None:
