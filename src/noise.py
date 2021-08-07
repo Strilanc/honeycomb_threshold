@@ -67,10 +67,10 @@ class NoiseModel:
             idle=0,
             measure_reset_idle=0,
             noisy_gates={
-                "R": 0,
+                "R": 0,  # Note that hack induces perfect initial prep/terminal measurement.
                 "M": 0,
-                "MPP_CORR": f(p, 5),
-                "E": 0
+                "MPP_CORR": f(p, 5),  # 5 <-> correlated DEPOLARIZE2 + X_ERROR.
+                "E": 0  # Hack to recognize manually inserted CORRELATED_ERROR gates.
             },
         )
 
