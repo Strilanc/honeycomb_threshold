@@ -371,7 +371,8 @@ def _sub_round_resets(
 
 def MPP_CORR(targets: List[int], p: float) -> stim.Circuit:
 
-    # Generate all possible combinations of (non-identity) channels.  Assumes triple of targets.
+    # Generate all possible combinations of (non-identity) channels.  Assumes triple of targets
+    # with last element corresponding to measure qubit.
     circuit = stim.Circuit()
 
     first_targets = ["I", stim.target_x(targets[0]), stim.target_y(targets[0]), stim.target_z(targets[0])]
