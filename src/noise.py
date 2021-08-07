@@ -180,7 +180,7 @@ class NoiseModel:
                 }
                 if op.name in ANNOTATION_OPS:
                     touched_qubits.clear()
-                # Hack: turn off this assertion for now since correlated errors are built into circuit.
+                # Hack: turn off this assertion off for now since correlated errors are built into circuit.
                 #assert touched_qubits.isdisjoint(used_qubits), repr(current_moment_pre + current_moment_mid + current_moment_post)
                 used_qubits |= touched_qubits
                 if op.name in MEASURE_OPS or op.name in RESET_OPS:
