@@ -423,7 +423,7 @@ def _sub_round_measurements_and_detectors(
             for e in round_edges:
                 triples.append([lay.q2i[q] for q in [e.left, e.right, e.center]])
             for triple in triples:
-                MPP_CORR(triple, lay.noise_model.noisy_gates["MPP_CORR"])
+                moment += MPP_CORR(triple, lay.noise_model.noisy_gates["MPP_CORR"])
         moment.append_operation("M", [lay.q2i[edge.center] for edge in round_edges])
     mtrack.add_measurements(*(('1/2', e) for e in round_edges))
     # Reconstruct edge measurements using previous round if needed due to non-demo measurement.
