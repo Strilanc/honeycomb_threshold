@@ -69,7 +69,7 @@ class NoiseModel:
             noisy_gates={
                 "R": 0,
                 "M": 0,
-                "MPP_CORR": f(p, 3),
+                "MPP_CORR": f(p, 5),
                 "E": 0
             },
         )
