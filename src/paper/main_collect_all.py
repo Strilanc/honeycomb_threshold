@@ -24,51 +24,22 @@ def main():
         if not (0 < jobs_count and 0 <= job_id < jobs_count):
             raise ValueError("Need 0 < jobs_count and 0 <= job_id < jobs_count")
 
-    SPREAD = 5
+    SPREAD = 4
     cases = [
         HoneycombLayout(
             noise=p,
-            tile_width=u * 2,
-            tile_height=u,
-            sub_rounds=u * 18,  # 3 sub rounds, 2 distance, 3 cells.
+            tile_width= u * 2,
+            tile_height= u,
+            sub_rounds= u * 6,
             style=style,
             obs=obs,
         )
         for p in [
-            0.0001,
-            0.0002,
-            0.0005,
             0.001,
-            0.0015,
-            0.002,
-            0.0025,
-            0.003,
-            0.004,
-            0.005,
-            0.006,
-            0.007,
-            0.008,
-            0.009,
-            0.010,
-            0.015,
         ]
-        for u in [
-            1,
-            2,
-            3,
-            4,
-            5,
-        ]
-        for style in [
-            "SD6",
-            "EM3",
-            "PC3",
-            "SI500",
-        ]
-        for obs in [
-            "H",
-            "V",
-        ]
+        for u in [2, 3]
+        for style in ["PC3"]
+        for obs in ["H", "V"]
     ] * SPREAD
     if job_id is not None:
         cases = cases[job_id::jobs_count]
@@ -79,7 +50,7 @@ def main():
         discard_previous_data=True,
         min_shots=25,
         max_batch=10**6 // SPREAD,
-        max_shots=10**8 // SPREAD,
+        max_shots=10**6 // SPREAD,
         max_sample_std_dev=1,
         min_seen_logical_errors=10**3 // SPREAD,
         use_internal_decoder=True,

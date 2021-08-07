@@ -86,6 +86,7 @@ class HoneycombLayout:
         style: Determines details of the circuit layout and the error model used. Valid values are
             "SD6": Standard depolarizing circuit (w/ 6 step cycle).
             "EM3": Entangling measurements circuit (w/ 3 step cycle).
+            "EM3_CORR": Entangling measurements circuit (w/ 3 step cycle) and measurement-depolarizing correlated model.
             "CP3": Controlled paulis circuit (w/ 3 step cycle).
             "SI500": Superconducting inspired (w/ ~500 nanosecond cycle).
         obs: The observable to initialize and measure fault tolerantly. Valid values are:
@@ -108,6 +109,8 @@ class HoneycombLayout:
             return NoiseModel.PC3(self.noise)
         if self.style == "EM3":
             return NoiseModel.EM3(self.noise)
+        if self.style == "EM3_CORR":
+            return NoiseModel.EM3_CORR(self.noise)
         if self.style == "SI500":
             return NoiseModel.SI500(self.noise)
         raise NotImplementedError(self.style)

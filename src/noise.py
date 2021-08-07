@@ -9,6 +9,9 @@ RESET_OPS = {"R", "RX", "RY"}
 MEASURE_OPS = {"M", "MX", "MY"}
 ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
 
+def f(d: float, n: float) -> float:
+    return 0.5 - 0.5*(1 - 2**n/(2**n-1)*d)**(1/2**(n-1))
+
 @dataclasses.dataclass(frozen=True)
 class NoiseModel:
     idle: float
@@ -53,6 +56,20 @@ class NoiseModel:
                 "R": p,
                 "M": p,
                 "MPP": p,
+            },
+        )
+
+    @staticmethod
+    def EM3_CORR(p: float) -> 'NoiseModel':
+        return NoiseModel(
+            any_clifford_1=0,
+            any_clifford_2=0,
+            idle=0,
+            measure_reset_idle=0,
+            noisy_gates={
+                "R": 0,
+                "M": 0,
+                "MPP_CORR": f(p, 3),
             },
         )
 
