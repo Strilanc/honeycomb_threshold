@@ -138,8 +138,8 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
         return predictions
 
 
-def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> pymatching.Matching:
-    """Convert stim error model into a pymatching graph."""
+def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph:
+    """Convert stim error model into a NetworkX graph."""
     det_offset = 0
 
     def _iter_model(m: stim.DetectorErrorModel, reps: int, callback: Callable[[float, List[int], List[int]], None]):
@@ -180,15 +180,6 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
 
     g = nx.Graph()
     num_detectors = model.num_detectors
-    num_observables = model.num_observables
-    for k in range(num_detectors):
-        g.add_node(k)
-    g.add_node(num_detectors, is_boundary=True)
-    g.add_node(num_detectors + 1)
-    for k in range(num_detectors + 1):
-        g.add_edge(k, num_detectors + 1, weight=9999999999)
-    # Ensure all observables ids up to the max are mentioned.
-    g.add_edge(num_detectors, num_detectors + 1, weight=9999999999, qubit_id=list(range(num_observables)))
 
     def handle_error(p: float, dets: List[int], frame_changes: List[int]):
         if p == 0:
@@ -209,5 +200,22 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
         g.add_edge(*dets, weight=math.log((1 - p) / p), qubit_id=frame_changes, error_probability=p)
 
     _iter_model(model, 1, handle_error)
+
+    return g
+
+def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> pymatching.Matching:
+    """Convert stim error model into a pymatching graph."""
+    g = detector_error_model_to_nx_graph(model)
+    num_detectors = model.num_detectors
+    num_observables = model.num_observables
+
+    for k in range(num_detectors):
+        g.add_node(k)
+    g.add_node(num_detectors, is_boundary=True)
+    g.add_node(num_detectors + 1)
+    for k in range(num_detectors + 1):
+        g.add_edge(k, num_detectors + 1, weight=9999999999)
+    # Ensure all observables ids up to the max are mentioned.
+    g.add_edge(num_detectors, num_detectors + 1, weight=9999999999, qubit_id=list(range(num_observables)))
 
     return pymatching.Matching(g)

@@ -1,8 +1,9 @@
 import itertools
+import networkx as nx
 
 import pytest
 
-from decoding import sample_decode_count_correct, internal_decoder_path
+from decoding import sample_decode_count_correct, internal_decoder_path, detector_error_model_to_nx_graph
 from honeycomb_circuit import generate_honeycomb_circuit
 from honeycomb_layout import HoneycombLayout
 
@@ -47,3 +48,17 @@ def test_pymatching_runs(tile_diam: int, sub_rounds: int, style: str, obs: str):
         )),
         use_internal_decoder=False,
     )
+
+def test_connectivity():
+    error_graph = detector_error_model_to_nx_graph(
+    generate_honeycomb_circuit(HoneycombLayout(
+        tile_width=2,
+        tile_height=1,
+        sub_rounds=100,
+        noise=0.001,
+        style="EM3_CORR",
+        obs='V',
+    )).detector_error_model(decompose_errors=True),
+    )
+
+    assert nx.number_connected_components(error_graph) == 2
