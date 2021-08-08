@@ -86,12 +86,13 @@ class HoneycombLayout:
         style: Determines details of the circuit layout and the error model used. Valid values are
             "SD6": Standard depolarizing circuit (w/ 6 step cycle).
             "EM3": Entangling measurements circuit (w/ 3 step cycle).
-            "EM3_CORR": Entangling measurements circuit (w/ 3 step cycle) and measurement-depolarizing correlated model.
+            "EM3_v2": Entangling measurements circuit (w/ 3 step cycle) and measurement-depolarizing correlated model.
             "CP3": Controlled paulis circuit (w/ 3 step cycle).
             "SI500": Superconducting inspired (w/ ~500 nanosecond cycle).
         obs: The observable to initialize and measure fault tolerantly. Valid values are:
             "H": Horizontal observable.
             "V": Vertical observable.
+        correlated_decoding: Whether or not to use correlation analysis when matching errors.
     """
 
     tile_width: int
@@ -100,6 +101,7 @@ class HoneycombLayout:
     style: str
     obs: str
     noise: float
+    correlated_decoding: bool = False
 
     @functools.cached_property
     def noise_model(self) -> NoiseModel:
@@ -108,9 +110,9 @@ class HoneycombLayout:
         if self.style == "PC3":
             return NoiseModel.PC3(self.noise)
         if self.style == "EM3":
-            return NoiseModel.EM3(self.noise)
-        if self.style == "EM3_CORR":
-            return NoiseModel.EM3_CORR(self.noise)
+            return NoiseModel.EM3_v1(self.noise)
+        if self.style == "EM3_v2":
+            return NoiseModel.EM3_v2(self.noise)
         if self.style == "SI500":
             return NoiseModel.SI500(self.noise)
         raise NotImplementedError(self.style)
@@ -247,7 +249,7 @@ class HoneycombLayout:
 
     @functools.cached_property
     def used_qubit_coords(self) -> Tuple[complex, ...]:
-        if self.style in ["EM3", "EM3_CORR"] :
+        if self.style in ["EM3", "EM3_v2"] :
             return self.data_qubit_coords
         return tuple(self.q2i.keys())
 
@@ -258,7 +260,7 @@ class HoneycombLayout:
     @functools.cached_property
     def num_qubits(self) -> int:
         result = self.data_width * self.data_height
-        if self.style not in ["EM3", "EM3_CORR"]:
+        if self.style not in ["EM3", "EM3_v2"]:
             result = int(result * 2.5)
         return result
 

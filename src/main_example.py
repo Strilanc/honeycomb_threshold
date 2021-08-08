@@ -11,7 +11,7 @@ def main():
                 tile_width=d * 2,
                 tile_height=d,
                 sub_rounds=30,
-                style="EM3",
+                style="EM3_v2",
                 obs="H",
             )
             for d in [1, 2]

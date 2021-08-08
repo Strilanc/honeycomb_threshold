@@ -588,13 +588,13 @@ def test_circuit_details_EM3():
     """)
 
 
-def test_circuit_details_EM3_CORR():
+def test_circuit_details_EM3_v2():
     actual = generate_honeycomb_circuit(HoneycombLayout(
         tile_width=1,
         tile_height=1,
         sub_rounds=1003,
         noise=0.001,
-        style="EM3_CORR",
+        style="EM3_v2",
         obs="V",
     ))
     cleaned = stim.Circuit(str(actual))
