@@ -1,7 +1,9 @@
 import pytest
 import stim
+import numpy as np
 
 from noise import NoiseModel
+from noise import decorrelation_prob
 
 
 def test_sd6():
@@ -178,3 +180,23 @@ def test_pc3():
         X_ERROR(0.125) 2
         DEPOLARIZE1(0.125) 0 1 3
     """)
+
+def test_decorrelated_prob():
+
+    def distribution(d, n):
+        result = np.zeros(2**n, dtype=np.float64)
+        result[0] = 1
+        p = decorrelation_prob(d, n)
+        for k in range(1, 2**n):
+            for src in range(2**n):
+                dst = src ^ k
+                if src < dst:
+                    a, b = result[src], result[dst]
+                    a2 = a * (1 - p) + b * p
+                    b2 = b * (1 - p) + a * p
+                    result[src], result[dst] = a2, b2
+        return result
+
+    result = distribution(0.001, 5)
+    print(decorrelation_prob(0.001, 5))
+    np.testing.assert_allclose(result, [1 - 0.001 + 0.001/32] + [0.001/32]*31)

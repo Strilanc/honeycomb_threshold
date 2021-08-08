@@ -247,7 +247,7 @@ class HoneycombLayout:
 
     @functools.cached_property
     def used_qubit_coords(self) -> Tuple[complex, ...]:
-        if self.style == "EM3":
+        if self.style in ["EM3", "EM3_CORR"] :
             return self.data_qubit_coords
         return tuple(self.q2i.keys())
 
@@ -258,7 +258,7 @@ class HoneycombLayout:
     @functools.cached_property
     def num_qubits(self) -> int:
         result = self.data_width * self.data_height
-        if self.style != "EM3":
+        if self.style not in ["EM3", "EM3_CORR"]:
             result = int(result * 2.5)
         return result
 

@@ -9,8 +9,57 @@ RESET_OPS = {"R", "RX", "RY"}
 MEASURE_OPS = {"M", "MX", "MY"}
 ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
 
-def f(d: float, n: float) -> float:
-    return 0.5 - 0.5*(1 - 2**n/(2**n-1)*d)**(1/2**(n-1))
+def decorrelation_prob(d: float, n: float) -> float:
+    """Converts from depolarizing error d on n bits to probability of
+    independent channels of probability p that compose to depolarizing
+    channel.  For this one method, and NOWHERE ELSE, this corresponds
+    to a maximally-mixing depolarization - identity 'errors' can happen."""
+    return 0.5 - 0.5*(1 - d)**(1/2**(n-1))
+
+def MPP_CORR(data1: stim.GateTarget, data2: stim.GateTarget, ancilla: int, p: float) -> stim.Circuit:
+
+    # Generate all possible combinations of (non-identity) channels.  Assumes triple of targets
+    # with last element corresponding to measure qubit.
+    circuit = stim.Circuit()
+    circuit.append_operation('R', [ancilla])
+    if data1.is_x_target:
+        circuit.append_operation('XCX', [data1.value, ancilla])
+    if data1.is_y_target:
+        circuit.append_operation('YCX', [data1.value, ancilla])
+    if data1.is_z_target:
+        circuit.append_operation('ZCX', [data1.value, ancilla])
+    if data2.is_x_target:
+        circuit.append_operation('XCX', [data2.value, ancilla])
+    if data2.is_y_target:
+        circuit.append_operation('YCX', [data2.value, ancilla])
+    if data2.is_z_target:
+        circuit.append_operation('ZCX', [data2.value, ancilla])
+
+    first_targets = ["I", stim.target_x(data1.value), stim.target_y(data1.value), stim.target_z(data1.value)]
+    second_targets = ["I", stim.target_x(data2.value), stim.target_y(data2.value), stim.target_z(data2.value)]
+    measure_targets = ["I", stim.target_x(ancilla)]
+
+    errors = []
+    for first_target in first_targets:
+        for second_target in second_targets:
+            for measure_target in measure_targets:
+                error = []
+                if first_target != "I":
+                    error.append(first_target)
+                if second_target != "I":
+                    error.append(second_target)
+                if measure_target != "I":
+                    error.append(measure_target)
+
+                if len(error) > 0:
+                    errors.append(error)
+
+    for error in errors:
+        circuit.append_operation("CORRELATED_ERROR", error, p)
+
+    circuit.append_operation('M', [ancilla])
+
+    return circuit
 
 @dataclasses.dataclass(frozen=True)
 class NoiseModel:
@@ -19,6 +68,7 @@ class NoiseModel:
     noisy_gates: Dict[str, float]
     any_clifford_1: Optional[float] = None
     any_clifford_2: Optional[float] = None
+    correlated_EM_error: bool = False
 
     @staticmethod
     def SD6(p: float) -> 'NoiseModel':
@@ -64,13 +114,13 @@ class NoiseModel:
         return NoiseModel(
             any_clifford_1=0,
             any_clifford_2=0,
-            idle=0,
+            idle=0.5,
             measure_reset_idle=0,
+            correlated_EM_error=True,
             noisy_gates={
-                "R": 0,  # Note that hack induces perfect initial prep/terminal measurement.
-                "M": 0,
-                "MPP_CORR": f(p, 5),  # 5 <-> correlated DEPOLARIZE2 + X_ERROR.
-                "E": 0  # Hack to recognize manually inserted CORRELATED_ERROR gates.
+                "R": p/2,  # Note that hack induces perfect initial prep/terminal measurement.
+                "M": p/2,
+                "MPP": p,
             },
         )
 
@@ -87,7 +137,7 @@ class NoiseModel:
             },
         )
 
-    def noisy_op(self, op: stim.CircuitInstruction, p: float) -> Tuple[stim.Circuit, stim.Circuit, stim.Circuit]:
+    def noisy_op(self, op: stim.CircuitInstruction, p: float, ancilla: int) -> Tuple[stim.Circuit, stim.Circuit, stim.Circuit]:
         pre = stim.Circuit()
         mid = stim.Circuit()
         post = stim.Circuit()
@@ -105,9 +155,20 @@ class NoiseModel:
                     pre.append_operation("Z_ERROR" if op.name.endswith("X") else "X_ERROR", targets, p)
             elif op.name == "MPP":
                 assert len(targets) % 3 == 0 and all(t.is_combiner for t in targets[1::3]), repr(op)
-                pre.append_operation("DEPOLARIZE2", [t.value for t in targets if not t.is_combiner], p)
-                assert args == [] or args == [0]
-                args = [p]
+                if self.correlated_EM_error:
+                    for k in range(0, len(targets), 3):
+                        first_target = targets[k]
+                        second_target = targets[k+2]
+                        mid += MPP_CORR(first_target, second_target, ancilla, decorrelation_prob(p, 5))
+
+                    assert args == [] or args == [0]
+                    return pre, mid, post
+
+                else:
+                    pre.append_operation("DEPOLARIZE2", [t.value for t in targets if not t.is_combiner], p)
+                    assert args == [] or args == [0]
+                    args = [p]
+
             else:
                 raise NotImplementedError(repr(op))
         mid.append_operation(op.name, targets, args)
@@ -115,6 +176,7 @@ class NoiseModel:
 
     def noisy_circuit(self, circuit: stim.Circuit, *, qs: Optional[Set[int]] = None) -> stim.Circuit:
         result = stim.Circuit()
+        ancilla = circuit.num_qubits
 
         current_moment_pre = stim.Circuit()
         current_moment_mid = stim.Circuit()
@@ -167,7 +229,7 @@ class NoiseModel:
                     p = 0
                 else:
                     raise NotImplementedError(repr(op))
-                pre, mid, post = self.noisy_op(op, p)
+                pre, mid, post = self.noisy_op(op, p, ancilla)
                 current_moment_pre += pre
                 current_moment_mid += mid
                 current_moment_post += post

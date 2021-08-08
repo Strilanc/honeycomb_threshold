@@ -35,7 +35,7 @@ def generate_honeycomb_circuit(lay: HoneycombLayout) -> stim.Circuit:
     elif lay.style == "EM3":
         result += generate_rounds_em3(lay, mtrack)
     elif lay.style == "EM3_CORR":
-        result += generate_rounds_pc3(lay, mtrack)
+        result += generate_rounds_em3(lay, mtrack)
     elif lay.style == "SI500":
         result += generate_rounds_si500(lay, mtrack)
     else:
@@ -369,37 +369,6 @@ def _sub_round_resets(
     return moment
 
 
-def MPP_CORR(targets: List[int], p: float) -> stim.Circuit:
-
-    # Generate all possible combinations of (non-identity) channels.  Assumes triple of targets
-    # with last element corresponding to measure qubit.
-    circuit = stim.Circuit()
-
-    first_targets = ["I", stim.target_x(targets[0]), stim.target_y(targets[0]), stim.target_z(targets[0])]
-    second_targets = ["I", stim.target_x(targets[1]), stim.target_y(targets[1]), stim.target_z(targets[1])]
-    measure_targets = ["I", stim.target_x(targets[2])]
-
-    errors = []
-    for first_target in first_targets:
-        for second_target in second_targets:
-            for measure_target in measure_targets:
-                error = []
-                if first_target != "I":
-                    error.append(first_target)
-                if second_target != "I":
-                    error.append(second_target)
-                if measure_target != "I":
-                    error.append(measure_target)
-
-                if len(error) > 0:
-                    errors.append(error)
-
-    for error in errors:
-        circuit.append_operation("CORRELATED_ERROR", error, p)
-
-    return circuit
-
-
 def _sub_round_measurements_and_detectors(
         *,
         lay: HoneycombLayout,
@@ -411,20 +380,14 @@ def _sub_round_measurements_and_detectors(
     Handles annotating detectors and observables within the bulk of the circuit.
     """
 
-    xor_vs_previous = lay.style == "PC3" or lay.style == "EM3_CORR"
-    do_measurement = lay.style != "EM3"
+    xor_vs_previous = lay.style == "PC3"
+    do_measurement = lay.style not in ["EM3", "EM3_CORR"]
 
     round_edges = lay.round_edges(sub_round)
     moment = stim.Circuit()
 
     # Measure the ancillae.
     if do_measurement:
-        if lay.style == "EM3_CORR":
-            triples = []
-            for e in round_edges:
-                triples.append([lay.q2i[q] for q in [e.left, e.right, e.center]])
-            for triple in triples:
-                moment += MPP_CORR(triple, lay.noise_model.noisy_gates["MPP_CORR"])
         moment.append_operation("M", [lay.q2i[edge.center] for edge in round_edges])
     mtrack.add_measurements(*(('1/2', e) for e in round_edges))
     # Reconstruct edge measurements using previous round if needed due to non-demo measurement.
@@ -433,7 +396,7 @@ def _sub_round_measurements_and_detectors(
         mtrack.add_group(*[Prev(('1/2', e), offset=t) for t in recover_value_set], group_key=e)
 
     # Multiply edge measurements along the observable's path into the observable.
-    manually_accumulating_obs = lay.style != "PC3" and lay.style != "EM3_CORR"
+    manually_accumulating_obs = lay.style != "PC3"
     if manually_accumulating_obs:
         moment.append_operation(
             "OBSERVABLE_INCLUDE",
