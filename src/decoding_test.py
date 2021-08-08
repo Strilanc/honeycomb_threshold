@@ -32,7 +32,7 @@ def test_internal_decoder_actually_runs(tile_diam: int, sub_rounds: int, style: 
 @pytest.mark.parametrize('tile_diam,sub_rounds,style,obs', itertools.product(
     range(1, 3),
     range(5, 10),
-    ["PC3"],
+    ["PC3", "SD6", "EM3"],
     ["H", "V"]
 ) if internal_decoder_path() is not None else [])
 def test_pymatching_runs(tile_diam: int, sub_rounds: int, style: str, obs: str):
@@ -49,16 +49,23 @@ def test_pymatching_runs(tile_diam: int, sub_rounds: int, style: str, obs: str):
         use_internal_decoder=False,
     )
 
-def test_connectivity():
+
+@pytest.mark.parametrize('style', ["PC3", "EM3", "EM3_CORR", "SI500", "SD6"])
+def test_graph_has_two_connected_components(style: str):
     error_graph = detector_error_model_to_nx_graph(
-    generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=2,
-        tile_height=1,
-        sub_rounds=100,
-        noise=0.001,
-        style="EM3_CORR",
-        obs='V',
-    )).detector_error_model(decompose_errors=True),
+        generate_honeycomb_circuit(HoneycombLayout(
+            tile_width=2,
+            tile_height=1,
+            sub_rounds=99,
+            noise=0.001,
+            style=style,
+            obs='V',
+        )).detector_error_model(decompose_errors=True),
     )
 
-    assert nx.number_connected_components(error_graph) == 2
+    components = list(nx.connected_components(error_graph))
+    assert len(components) == 2
+
+    # The components should be roughly the same size.
+    a, b = components
+    assert 0.7 < len(a) / len(b) < 1.3
