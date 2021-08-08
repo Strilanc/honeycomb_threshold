@@ -1,7 +1,9 @@
 import pytest
 import stim
+import numpy as np
 
 from noise import NoiseModel
+from noise import mix_probability_to_independent_component_probability
 
 
 def test_sd6():
@@ -82,16 +84,16 @@ def test_sd6():
 
 
 def test_em3():
-    assert NoiseModel.EM3(0.125).noisy_circuit(stim.Circuit("""
+    assert NoiseModel.EM3_v1(0.125).noisy_circuit(stim.Circuit("""
     """)) == stim.Circuit("""
     """)
 
     with pytest.raises(NotImplementedError):
-        NoiseModel.EM3(0.125).noisy_circuit(stim.Circuit("""
+        NoiseModel.EM3_v1(0.125).noisy_circuit(stim.Circuit("""
             CX 1 2
         """))
 
-    assert NoiseModel.EM3(0.125).noisy_circuit(stim.Circuit("""
+    assert NoiseModel.EM3_v1(0.125).noisy_circuit(stim.Circuit("""
         MPP X1*X2
     """)) == stim.Circuit("""
         DEPOLARIZE2(0.125) 1 2
@@ -99,7 +101,7 @@ def test_em3():
         DEPOLARIZE1(0.125) 0
     """)
 
-    assert NoiseModel.EM3(0.125).noisy_circuit(stim.Circuit("""
+    assert NoiseModel.EM3_v1(0.125).noisy_circuit(stim.Circuit("""
         R 1
         TICK
         MPP X1*X2
@@ -178,3 +180,24 @@ def test_pc3():
         X_ERROR(0.125) 2
         DEPOLARIZE1(0.125) 0 1 3
     """)
+
+
+def test_mix_probability_to_independent_component_probability():
+
+    def independent_samples_distribution(p: float, n: int) -> np.ndarray:
+        dist = np.zeros(2**n, dtype=np.float64)
+        dist[0] = 1
+        for k in range(1, 2**n):
+            for src in range(2**n):
+                dst = src ^ k
+                if src < dst:
+                    a, b = dist[src], dist[dst]
+                    a2 = a * (1 - p) + b * p
+                    b2 = b * (1 - p) + a * p
+                    dist[src], dist[dst] = a2, b2
+        return dist
+
+    p = 0.1
+    actual_dist = independent_samples_distribution(mix_probability_to_independent_component_probability(p, 5), 5)
+    expected_dist = [1 - p + p/32] + [p/32]*31
+    np.testing.assert_allclose(actual_dist, expected_dist)

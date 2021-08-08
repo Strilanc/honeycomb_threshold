@@ -62,6 +62,7 @@ def main():
         for style in [
             "SD6",
             "EM3",
+            "EM3_v2",
             "PC3",
             "SI500",
         ]

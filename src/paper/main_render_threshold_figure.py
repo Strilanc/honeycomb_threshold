@@ -1,3 +1,4 @@
+import pathlib
 import sys
 from pathlib import Path
 
@@ -13,12 +14,15 @@ import matplotlib.pyplot as plt
 def main():
     fig = plt.figure()
     gs = fig.add_gridspec(2, 4, hspace=0.05, wspace=0.05)
-    axs = gs.subplots()
+    axs = gs.subplots(sharex=True, sharey=True)
     if len(sys.argv) == 1:
-        raise ValueError("Specify csv files to include as command line arguments.")
+        csvs = [str(f.absolute()) for f in pathlib.Path("data/run4_4qx6q").glob("*.csv")]
+        #raise ValueError("Specify csv files to include as command line arguments.")
+    else:
+        csvs = sys.argv[1:]
     focus_on_threshold_crossing = False
 
-    all_data = read_recorded_data(*sys.argv[1:])
+    all_data = read_recorded_data(*csvs)
     keys = [
         HoneycombLayout(
             tile_width=1,

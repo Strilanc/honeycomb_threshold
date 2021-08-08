@@ -32,7 +32,7 @@ def generate_honeycomb_circuit(lay: HoneycombLayout) -> stim.Circuit:
         result += generate_rounds_sd6(lay, mtrack)
     elif lay.style == "PC3":
         result += generate_rounds_pc3(lay, mtrack)
-    elif lay.style == "EM3":
+    elif lay.style in ["EM3", "EM3_v2"]:
         result += generate_rounds_em3(lay, mtrack)
     elif lay.style == "SI500":
         result += generate_rounds_si500(lay, mtrack)
@@ -379,7 +379,7 @@ def _sub_round_measurements_and_detectors(
     """
 
     xor_vs_previous = lay.style == "PC3"
-    do_measurement = lay.style != "EM3"
+    do_measurement = lay.style not in ["EM3", "EM3_v2"]
 
     round_edges = lay.round_edges(sub_round)
     moment = stim.Circuit()

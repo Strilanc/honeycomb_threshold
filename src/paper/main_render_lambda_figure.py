@@ -252,7 +252,6 @@ def plot_lambda(data: GROUPED_RECORDED_DATA,
     for noise in sorted(groups.keys()):
         group = groups[noise]
         r = group.linear_fit_d_to_log_err
-        print(noise, r.slope)
         if r.slope != 0:
             lambda_xs.append(noise)
             lambda_ys.append(1 / math.exp(r.slope)**2)

@@ -52,7 +52,7 @@ def decode_using_pymatching(circuit: stim.Circuit,
                             det_samples: np.ndarray,
                             ) -> np.ndarray:
     """Collect statistics on how often logical errors occur when correcting using detections."""
-    error_model = circuit.detector_error_model()
+    error_model = circuit.detector_error_model(decompose_errors=True)
     matching_graph = detector_error_model_to_pymatching_graph(error_model)
 
     num_shots = det_samples.shape[0]
@@ -138,8 +138,8 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
         return predictions
 
 
-def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> pymatching.Matching:
-    """Convert stim error model into a pymatching graph."""
+def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph:
+    """Convert a stim error model into a NetworkX graph."""
     det_offset = 0
 
     def _iter_model(m: stim.DetectorErrorModel, reps: int, callback: Callable[[float, List[int], List[int]], None]):
@@ -161,7 +161,7 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
                                 frames.append(t.val)
                             elif t.is_separator():
                                 # Treat each component of a decomposed error as an independent error.
-                                # (ideally we could configure some sort of correlated analysis, but no support for it.)
+                                # (Ideally we could configure some sort of correlated analysis; oh well.)
                                 callback(p, dets, frames)
                                 frames = []
                                 dets = []
@@ -180,24 +180,20 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
 
     g = nx.Graph()
     num_detectors = model.num_detectors
-    num_observables = model.num_observables
-    for k in range(num_detectors):
-        g.add_node(k)
-    g.add_node(num_detectors, is_boundary=True)
-    g.add_node(num_detectors + 1)
-    for k in range(num_detectors + 1):
-        g.add_edge(k, num_detectors + 1, weight=9999999999)
-    # Ensure all observables ids up to the max are mentioned.
-    g.add_edge(num_detectors, num_detectors + 1, weight=9999999999, qubit_id=list(range(num_observables)))
 
     def handle_error(p: float, dets: List[int], frame_changes: List[int]):
         if p == 0:
             return
+        if len(dets) == 0:
+            # No symptoms for this error.
+            # Code probably has distance 1.
+            # Accept it and keep going, though of course decoding will probably perform terribly.
+            return
         if len(dets) == 1:
             dets.append(num_detectors)
-        if len(dets) != 2:
-            # Just ignore undecomposed correlated error mechanisms (e.g. XX errors causing 4 detections).
-            return
+        if len(dets) > 2:
+            raise NotImplementedError(
+                f"Error with more than 2 symptoms can't become an edge or boundary edge: {dets!r}.")
         if g.has_edge(*dets):
             edge_data = g.get_edge_data(*dets)
             old_p = edge_data["error_probability"]
@@ -209,5 +205,26 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
         g.add_edge(*dets, weight=math.log((1 - p) / p), qubit_id=frame_changes, error_probability=p)
 
     _iter_model(model, 1, handle_error)
+
+    return g
+
+
+def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> pymatching.Matching:
+    """Convert a stim error model into a pymatching graph."""
+    g = detector_error_model_to_nx_graph(model)
+    num_detectors = model.num_detectors
+    num_observables = model.num_observables
+
+    # Add spandrels to the graph to ensure pymatching will accept it.
+    # - Make sure there's only one connected component.
+    # - Make sure no detector nodes are skipped.
+    # - Make sure no observable nodes are skipped.
+    for k in range(num_detectors):
+        g.add_node(k)
+    g.add_node(num_detectors, is_boundary=True)
+    g.add_node(num_detectors + 1)
+    for k in range(num_detectors + 1):
+        g.add_edge(k, num_detectors + 1, weight=9999999999)
+    g.add_edge(num_detectors, num_detectors + 1, weight=9999999999, qubit_id=list(range(num_observables)))
 
     return pymatching.Matching(g)

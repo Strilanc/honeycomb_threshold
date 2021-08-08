@@ -9,6 +9,7 @@ RESET_OPS = {"R", "RX", "RY"}
 MEASURE_OPS = {"M", "MX", "MY"}
 ANNOTATION_OPS = {"OBSERVABLE_INCLUDE", "DETECTOR", "SHIFT_COORDS", "QUBIT_COORDS", "TICK"}
 
+
 @dataclasses.dataclass(frozen=True)
 class NoiseModel:
     idle: float
@@ -16,6 +17,7 @@ class NoiseModel:
     noisy_gates: Dict[str, float]
     any_clifford_1: Optional[float] = None
     any_clifford_2: Optional[float] = None
+    use_correlated_parity_measurement_errors: bool = False
 
     @staticmethod
     def SD6(p: float) -> 'NoiseModel':
@@ -44,7 +46,8 @@ class NoiseModel:
         )
 
     @staticmethod
-    def EM3(p: float) -> 'NoiseModel':
+    def EM3_v1(p: float) -> 'NoiseModel':
+        """EM3 but with measurement flip errors independent of measurement target depolarization error."""
         return NoiseModel(
             idle=p,
             measure_reset_idle=0,
@@ -57,11 +60,27 @@ class NoiseModel:
         )
 
     @staticmethod
+    def EM3_v2(p: float) -> 'NoiseModel':
+        """EM3 with measurement flip errors correlated with measurement target depolarization error."""
+        return NoiseModel(
+            any_clifford_1=0,
+            any_clifford_2=0,
+            idle=p,
+            measure_reset_idle=0,
+            use_correlated_parity_measurement_errors=True,
+            noisy_gates={
+                "R": p/2,
+                "M": p/2,
+                "MPP": p,
+            },
+        )
+
+    @staticmethod
     def SI500(p: float) -> 'NoiseModel':
         return NoiseModel(
             any_clifford_1=p / 10,
             idle=p / 10,
-            measure_reset_idle=5 * p,
+            measure_reset_idle=2 * p,
             noisy_gates={
                 "CZ": p,
                 "R": 2 * p,
@@ -69,7 +88,7 @@ class NoiseModel:
             },
         )
 
-    def noisy_op(self, op: stim.CircuitInstruction, p: float) -> Tuple[stim.Circuit, stim.Circuit, stim.Circuit]:
+    def noisy_op(self, op: stim.CircuitInstruction, p: float, ancilla: int) -> Tuple[stim.Circuit, stim.Circuit, stim.Circuit]:
         pre = stim.Circuit()
         mid = stim.Circuit()
         post = stim.Circuit()
@@ -87,9 +106,21 @@ class NoiseModel:
                     pre.append_operation("Z_ERROR" if op.name.endswith("X") else "X_ERROR", targets, p)
             elif op.name == "MPP":
                 assert len(targets) % 3 == 0 and all(t.is_combiner for t in targets[1::3]), repr(op)
-                pre.append_operation("DEPOLARIZE2", [t.value for t in targets if not t.is_combiner], p)
                 assert args == [] or args == [0]
-                args = [p]
+
+                if self.use_correlated_parity_measurement_errors:
+                    for k in range(0, len(targets), 3):
+                        mid += parity_measurement_with_correlated_measurement_noise(
+                            t1=targets[k],
+                            t2=targets[k + 2],
+                            ancilla=ancilla,
+                            mix_probability=p)
+                    return pre, mid, post
+
+                else:
+                    pre.append_operation("DEPOLARIZE2", [t.value for t in targets if not t.is_combiner], p)
+                    args = [p]
+
             else:
                 raise NotImplementedError(repr(op))
         mid.append_operation(op.name, targets, args)
@@ -97,6 +128,7 @@ class NoiseModel:
 
     def noisy_circuit(self, circuit: stim.Circuit, *, qs: Optional[Set[int]] = None) -> stim.Circuit:
         result = stim.Circuit()
+        ancilla = circuit.num_qubits
 
         current_moment_pre = stim.Circuit()
         current_moment_mid = stim.Circuit()
@@ -149,7 +181,7 @@ class NoiseModel:
                     p = 0
                 else:
                     raise NotImplementedError(repr(op))
-                pre, mid, post = self.noisy_op(op, p)
+                pre, mid, post = self.noisy_op(op, p, ancilla)
                 current_moment_pre += pre
                 current_moment_mid += mid
                 current_moment_post += post
@@ -162,7 +194,8 @@ class NoiseModel:
                 }
                 if op.name in ANNOTATION_OPS:
                     touched_qubits.clear()
-                assert touched_qubits.isdisjoint(used_qubits), repr(current_moment_pre + current_moment_mid + current_moment_post)
+                # Hack: turn off this assertion off for now since correlated errors are built into circuit.
+                #assert touched_qubits.isdisjoint(used_qubits), repr(current_moment_pre + current_moment_mid + current_moment_post)
                 used_qubits |= touched_qubits
                 if op.name in MEASURE_OPS or op.name in RESET_OPS:
                     measured_or_reset_qubits |= touched_qubits
@@ -171,3 +204,77 @@ class NoiseModel:
         flush()
 
         return result
+
+
+def mix_probability_to_independent_component_probability(mix_probability: float, n: float) -> float:
+    """Converts the probability of applying a full mixing channel to independent component probabilities.
+
+    If each component is applied independently with the returned component probability, the overall effect
+    is identical to, with probability `mix_probability`, uniformly picking one of the components to apply.
+
+    Not that, unlike in other places in the code, the all-identity case is one of the components that can
+    be picked when applying the error case.
+    """
+    return 0.5 - 0.5 * (1 - mix_probability) ** (1 / 2 ** (n - 1))
+
+
+def parity_measurement_with_correlated_measurement_noise(
+        *,
+        t1: stim.GateTarget,
+        t2: stim.GateTarget,
+        ancilla: int,
+        mix_probability: float) -> stim.Circuit:
+    """Performs a noisy parity measurement.
+
+    With probability mix_probability, applies a random element from
+
+        {I1,X1,Y1,Z1}*{I2,X2,Y2,Z2}*{no flip, flip}
+
+    Note that, unlike in other places in the code, the all-identity term is one of the possible
+    samples when the error occurs.
+    """
+
+    ind_p = mix_probability_to_independent_component_probability(mix_probability, 5)
+
+    # Generate all possible combinations of (non-identity) channels.  Assumes triple of targets
+    # with last element corresponding to measure qubit.
+    circuit = stim.Circuit()
+    circuit.append_operation('R', [ancilla])
+    if t1.is_x_target:
+        circuit.append_operation('XCX', [t1.value, ancilla])
+    if t1.is_y_target:
+        circuit.append_operation('YCX', [t1.value, ancilla])
+    if t1.is_z_target:
+        circuit.append_operation('ZCX', [t1.value, ancilla])
+    if t2.is_x_target:
+        circuit.append_operation('XCX', [t2.value, ancilla])
+    if t2.is_y_target:
+        circuit.append_operation('YCX', [t2.value, ancilla])
+    if t2.is_z_target:
+        circuit.append_operation('ZCX', [t2.value, ancilla])
+
+    first_targets = ["I", stim.target_x(t1.value), stim.target_y(t1.value), stim.target_z(t1.value)]
+    second_targets = ["I", stim.target_x(t2.value), stim.target_y(t2.value), stim.target_z(t2.value)]
+    measure_targets = ["I", stim.target_x(ancilla)]
+
+    errors = []
+    for first_target in first_targets:
+        for second_target in second_targets:
+            for measure_target in measure_targets:
+                error = []
+                if first_target != "I":
+                    error.append(first_target)
+                if second_target != "I":
+                    error.append(second_target)
+                if measure_target != "I":
+                    error.append(measure_target)
+
+                if len(error) > 0:
+                    errors.append(error)
+
+    for error in errors:
+        circuit.append_operation("CORRELATED_ERROR", error, ind_p)
+
+    circuit.append_operation('M', [ancilla])
+
+    return circuit
