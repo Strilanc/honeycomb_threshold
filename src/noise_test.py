@@ -142,12 +142,12 @@ def test_si7():
         X_ERROR(0.005) 3
         M 3
         DEPOLARIZE1(0.0001) 0 1 2
-        DEPOLARIZE1(0.005) 0 1 2
+        DEPOLARIZE1(0.002) 0 1 2
         TICK
         R 2
         X_ERROR(0.002) 2
         DEPOLARIZE1(0.0001) 0 1 3
-        DEPOLARIZE1(0.005) 0 1 3
+        DEPOLARIZE1(0.002) 0 1 3
     """)
 
 
