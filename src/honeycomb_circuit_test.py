@@ -2319,13 +2319,13 @@ def test_circuit_details_si500():
         OBSERVABLE_INCLUDE(0) rec[-5] rec[-4]
         SHIFT_COORDS(0, 0, 1)
         DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
-        DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        DEPOLARIZE1(0.002) 0 1 2 3 4 5 6 7 8 9 10 11
         TICK
 
         R 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
         X_ERROR(0.002) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
         DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
-        DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        DEPOLARIZE1(0.002) 0 1 2 3 4 5 6 7 8 9 10 11
         TICK
 
         C_ZYX 0 2 4 7 9 11
@@ -2401,7 +2401,7 @@ def test_circuit_details_si500():
         DETECTOR(2, 3, 0) rec[-29] rec[-27] rec[-26] rec[-22] rec[-21] rec[-19] rec[-11] rec[-9] rec[-8] rec[-4] rec[-3] rec[-1]
         SHIFT_COORDS(0, 0, 1)
         DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
-        DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+        DEPOLARIZE1(0.002) 0 1 2 3 4 5 6 7 8 9 10 11
         TICK
 
         # Now in stable state for cross-round comparisons. Use a loop.
@@ -2409,7 +2409,7 @@ def test_circuit_details_si500():
             R 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
             X_ERROR(0.002) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
             DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
-            DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+            DEPOLARIZE1(0.002) 0 1 2 3 4 5 6 7 8 9 10 11
             TICK
 
             C_ZYX 0 2 4 7 9 11
@@ -2478,7 +2478,7 @@ def test_circuit_details_si500():
             DETECTOR(2, 3, 0) rec[-29] rec[-27] rec[-26] rec[-22] rec[-21] rec[-19] rec[-11] rec[-9] rec[-8] rec[-4] rec[-3] rec[-1]
             SHIFT_COORDS(0, 0, 1)
             DEPOLARIZE1(0.0001) 0 1 2 3 4 5 6 7 8 9 10 11
-            DEPOLARIZE1(0.005) 0 1 2 3 4 5 6 7 8 9 10 11
+            DEPOLARIZE1(0.002) 0 1 2 3 4 5 6 7 8 9 10 11
             TICK
         }
 
@@ -2495,5 +2495,5 @@ def test_circuit_details_si500():
         DETECTOR(2, 5, 0) rec[-28] rec[-27] rec[-25] rec[-22] rec[-21] rec[-19] rec[-12] rec[-8] rec[-7] rec[-6] rec[-2] rec[-1]
         OBSERVABLE_INCLUDE(0) rec[-11] rec[-10] rec[-8] rec[-7]
         DEPOLARIZE1(0.0001) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
-        DEPOLARIZE1(0.005) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        DEPOLARIZE1(0.002) 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
     """)
