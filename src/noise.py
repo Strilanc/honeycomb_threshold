@@ -129,7 +129,7 @@ class NoiseModel:
         return NoiseModel(
             any_clifford_1=p / 10,
             idle=p / 10,
-            measure_reset_idle=5 * p,
+            measure_reset_idle=2 * p,
             noisy_gates={
                 "CZ": p,
                 "R": 2 * p,
