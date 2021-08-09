@@ -11,14 +11,32 @@ import pymatching
 import stim
 
 
-USE_CORRELATIONS = False
-
-
 def sample_decode_count_correct(*,
                                 circuit: stim.Circuit,
                                 num_shots: int,
-                                use_internal_decoder: bool) -> int:
-    """Counts how many times a decoder correctly predicts the logical frame of simulated runs."""
+                                decoder: str) -> int:
+    """Counts how many times a decoder correctly predicts the logical frame of simulated runs.
+
+    Args:
+        circuit: The circuit to sample from and decode results for.
+        num_shots: The number of sample shots to take from the cirucit.
+        decoder: The name of the decoder to use. Allowed values are:
+            "pymatching": Use pymatching.
+            "internal": Use an internal decoder at `src/internal_decoder.binary` (not publically available).
+            "internal_correlated": Use the internal decoder and tell it to do correlated decoding.
+    """
+
+    if decoder == "pymatching":
+        use_internal_decoder = False
+        use_correlated_decoding = False
+    elif decoder == "internal":
+        use_internal_decoder = True
+        use_correlated_decoding = False
+    elif decoder == "internal_correlated":
+        use_internal_decoder = True
+        use_correlated_decoding = True
+    else:
+        raise NotImplementedError(f"{decoder=!r}")
 
     num_dets = circuit.num_detectors
     num_obs = circuit.num_observables
@@ -40,6 +58,7 @@ def sample_decode_count_correct(*,
     predictions = decode_method(
         det_samples=det_samples,
         circuit=circuit,
+        use_correlated_decoding=use_correlated_decoding,
     )
 
     # Count how many solutions were completely correct.
@@ -50,8 +69,12 @@ def sample_decode_count_correct(*,
 
 def decode_using_pymatching(circuit: stim.Circuit,
                             det_samples: np.ndarray,
+                            use_correlated_decoding: bool,
                             ) -> np.ndarray:
     """Collect statistics on how often logical errors occur when correcting using detections."""
+    if use_correlated_decoding:
+        raise NotImplementedError("pymatching doesn't support correlated decoding")
+
     error_model = circuit.detector_error_model(decompose_errors=True)
     matching_graph = detector_error_model_to_pymatching_graph(error_model)
 
@@ -78,6 +101,7 @@ def internal_decoder_path() -> Optional[str]:
 
 def decode_using_internal_decoder(circuit: stim.Circuit,
                                   det_samples: np.ndarray,
+                                  use_correlated_decoding: bool,
                                   ) -> np.ndarray:
     num_shots = det_samples.shape[0]
     num_obs = circuit.num_observables
@@ -110,7 +134,7 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
                    f"-dets_fname '{dets_file}' "
                    f"-ignore_distance_1_errors "
                    f"-out '{out_file}'")
-        if USE_CORRELATIONS:
+        if use_correlated_decoding:
             command += " -cheap_corr -edge_corr -node_corr"
         try:
             subprocess.check_output(command, shell=True)
@@ -138,16 +162,19 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
         return predictions
 
 
-def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph:
-    """Convert a stim error model into a NetworkX graph."""
+def iter_flatten_model(model: stim.DetectorErrorModel,
+                       handle_error: Callable[[float, List[int], List[int]], None],
+                       handle_detector_coords: Callable[[int, np.ndarray], None]):
     det_offset = 0
+    coords_offset = np.zeros(100, dtype=np.float64)
 
-    def _iter_model(m: stim.DetectorErrorModel, reps: int, callback: Callable[[float, List[int], List[int]], None]):
+    def _helper(m: stim.DetectorErrorModel, reps: int):
         nonlocal det_offset
+        nonlocal coords_offset
         for _ in range(reps):
             for instruction in m:
                 if isinstance(instruction, stim.DemRepeatBlock):
-                    _iter_model(instruction.body_copy(), instruction.repeat_count, callback)
+                    _helper(instruction.body_copy(), instruction.repeat_count)
                 elif isinstance(instruction, stim.DemInstruction):
                     if instruction.type == "error":
                         dets: List[int] = []
@@ -162,24 +189,34 @@ def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph
                             elif t.is_separator():
                                 # Treat each component of a decomposed error as an independent error.
                                 # (Ideally we could configure some sort of correlated analysis; oh well.)
-                                callback(p, dets, frames)
+                                handle_error(p, dets, frames)
                                 frames = []
                                 dets = []
                         # Handle last component.
-                        callback(p, dets, frames)
+                        handle_error(p, dets, frames)
                     elif instruction.type == "shift_detectors":
                         det_offset += instruction.targets_copy()[0]
+                        a = np.array(instruction.args_copy())
+                        coords_offset[:len(a)] += a
                     elif instruction.type == "detector":
-                        pass
+                        a = np.array(instruction.args_copy())
+                        for t in instruction.targets_copy():
+                            handle_detector_coords(t.val + det_offset, a + coords_offset[:len(a)])
                     elif instruction.type == "logical_observable":
                         pass
                     else:
                         raise NotImplementedError()
                 else:
                     raise NotImplementedError()
+    _helper(model, 1)
+
+
+def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph:
+    """Convert a stim error model into a NetworkX graph."""
 
     g = nx.Graph()
-    num_detectors = model.num_detectors
+    boundary_node = model.num_detectors
+    g.add_node(boundary_node, is_boundary=True, coords=[-1, -1, -1])
 
     def handle_error(p: float, dets: List[int], frame_changes: List[int]):
         if p == 0:
@@ -190,7 +227,7 @@ def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph
             # Accept it and keep going, though of course decoding will probably perform terribly.
             return
         if len(dets) == 1:
-            dets.append(num_detectors)
+            dets = [dets[0], boundary_node]
         if len(dets) > 2:
             raise NotImplementedError(
                 f"Error with more than 2 symptoms can't become an edge or boundary edge: {dets!r}.")
@@ -204,7 +241,10 @@ def detector_error_model_to_nx_graph(model: stim.DetectorErrorModel) -> nx.Graph
                 g.remove_edge(*dets)
         g.add_edge(*dets, weight=math.log((1 - p) / p), qubit_id=frame_changes, error_probability=p)
 
-    _iter_model(model, 1, handle_error)
+    def handle_detector_coords(detector: int, coords: np.ndarray):
+        g.add_node(detector, coords=coords)
+
+    iter_flatten_model(model, handle_error=handle_error, handle_detector_coords=handle_detector_coords)
 
     return g
 
@@ -221,7 +261,6 @@ def detector_error_model_to_pymatching_graph(model: stim.DetectorErrorModel) -> 
     # - Make sure no observable nodes are skipped.
     for k in range(num_detectors):
         g.add_node(k)
-    g.add_node(num_detectors, is_boundary=True)
     g.add_node(num_detectors + 1)
     for k in range(num_detectors + 1):
         g.add_edge(k, num_detectors + 1, weight=9999999999)

@@ -23,9 +23,9 @@ def diagram_2d(values: Dict[complex, Any]):
 
 
 def test_ctx():
-    ctx1 = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=18, noise=0.001, style="SD6", obs="V")
-    ctx2 = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=18, noise=0.001, style="SD6", obs="V")
-    ctx3 = HoneycombLayout(tile_width=3, tile_height=3, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx1 = HoneycombLayout(data_width=2, data_height=6, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx2 = HoneycombLayout(data_width=4, data_height=12, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx3 = HoneycombLayout(data_width=6, data_height=18, sub_rounds=18, noise=0.001, style="SD6", obs="V")
 
     assert ctx1.wrap(-1) == 3
     assert ctx1.wrap(-1j) == 5j
@@ -179,7 +179,7 @@ def test_ctx():
     assert ctx1.data_width == 2
     assert ctx2.data_height == 12
     assert ctx2.data_width == 4
-    ctx21 = HoneycombLayout(tile_width=2, tile_height=1, sub_rounds=18, noise=0.001, style="SD6", obs="V")
+    ctx21 = HoneycombLayout(data_width=4, data_height=6, sub_rounds=18, noise=0.001, style="SD6", obs="V")
     assert ctx21.data_width == 4
     assert ctx21.data_height == 6
     assert ctx21.code_distance_1qdep == 4
@@ -187,12 +187,12 @@ def test_ctx():
     assert ctx1.num_qubits == len(ctx1.used_qubit_indices)
     assert ctx2.num_qubits == len(ctx2.used_qubit_indices)
     assert ctx21.num_qubits == len(ctx21.used_qubit_indices)
-    ctx21em = HoneycombLayout(tile_width=2, tile_height=1, sub_rounds=18, noise=0.001, style="EM3", obs="V")
+    ctx21em = HoneycombLayout(data_width=4, data_height=6, sub_rounds=18, noise=0.001, style="EM3", obs="V")
     assert ctx21em.num_qubits == len(ctx21em.used_qubit_indices)
 
 
 def test_ctx_layout():
-    ctx = HoneycombLayout(tile_width=2, tile_height=2, sub_rounds=20, noise=0.001, style="SD6", obs="V")
+    ctx = HoneycombLayout(data_width=4, data_height=12, sub_rounds=20, noise=0.001, style="SD6", obs="V")
     def scale(pt: complex) -> complex:
         return pt.real * 8 + pt.imag * 2j
     d = {}
@@ -235,7 +235,7 @@ def test_ctx_layout():
 
 
 def test_ctx_indexing():
-    ctx = HoneycombLayout(tile_width=1, tile_height=1, sub_rounds=20, noise=0.001, style="SD6", obs="V")
+    ctx = HoneycombLayout(data_width=2, data_height=6, sub_rounds=20, noise=0.001, style="SD6", obs="V")
     def scale(pt: complex) -> complex:
         return pt.real * 4 + pt.imag * 2j
     d = {}

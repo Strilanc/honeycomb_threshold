@@ -13,19 +13,24 @@ from scipy.stats._stats_mstats_common import LinregressResult
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
-from collect_data import read_recorded_data, GROUPED_RECORDED_DATA, RecordedExperimentData
+from collect_data import read_recorded_data, ProblemShotData, ShotData, DecodingProblemDesc
 from honeycomb_layout import HoneycombLayout
 
-from plotting import plot_data, total_error_to_per_round_error
+from plotting import total_error_to_per_piece_error
 
 import matplotlib.pyplot as plt
 
 def main():
     if len(sys.argv) == 1:
-        csvs = [str(f.absolute()) for f in pathlib.Path("data/run4_4qx6q").glob("*.csv")]
-        #raise ValueError("Specify csv files to include as command line arguments.")
-    else:
-        csvs = sys.argv[1:]
+        raise ValueError("Specify csv files to include as command line arguments.")
+
+    csvs = []
+    for path in sys.argv[1:]:
+        p = pathlib.Path(path)
+        if p.is_dir():
+            csvs.extend(p.glob("*.csv"))
+        else:
+            csvs.append(p)
 
     all_data = read_recorded_data(*csvs)
 
@@ -36,57 +41,43 @@ def main():
     plt.show()
 
 
-def make_lambda_combo_plot(all_data: GROUPED_RECORDED_DATA, t: int):
-    keys = [
-        HoneycombLayout(
-            tile_width=1,
-            tile_height=1,
-            sub_rounds=1,
-            style=style,
-            obs=obs,
-            noise=0,
-        )
-        for style in ["SD6", "EM3", "PC3", "SI500"]
-        for obs in ["H", "V"]
-    ]
+def make_lambda_combo_plot(all_data: ProblemShotData, magic_plot_type_integer: int):
+    expected_styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
     seen_probabilities = {
-        p
-        for x in all_data.values()
-        for y in x.values()
-        for p in y.keys()
+        k.noise
+        for k in all_data.data
     }
     p2i = {p: i for i, p in enumerate(sorted(seen_probabilities))}
-    if not all(k in keys for k in all_data.keys()):
-        raise NotImplementedError(repr(all_data.keys()))
+    groups = all_data.grouped_by(lambda e: e.circuit_style)
+    for k in groups.keys():
+        if k not in expected_styles:
+            raise NotImplementedError()
 
     fig = plt.figure()
     gs = fig.add_gridspec(1, 4, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
-    for i in range(0, len(keys), 2):
-        k1 = keys[i]
-        k2 = keys[i + 1]
-        v = {}
-        if k1 in all_data:
-            v[k1] = all_data[k1]
-        if k2 in all_data:
-            v[k2] = all_data[k2]
-        ax: plt.Axes = axs[i // 2]
+    for i, style in enumerate(expected_styles):
+        style_data = groups.get(style, ProblemShotData({}))
+        ax: plt.Axes = axs[i]
 
-        if t == 0:
+        if magic_plot_type_integer == 0:
             plot_lambda_line_fits(
-                v,
+                style_data,
                 ax=ax,
                 fig=fig,
                 p2i=p2i)
-        elif t == 1:
-            plot_lambda(v, ax=ax, fig=fig)
+        elif magic_plot_type_integer == 1:
+            plot_lambda(style_data, ax=ax, fig=fig)
         else:
-            plot_quop_regions(v, style=k1.style, ax=ax, fig=fig)
+            plot_quop_regions(style_data, style=style, ax=ax, fig=fig)
 
-        ax.set_title(k1.style)
-        if i == 6 and t == 0:
+        if style.endswith("_v2"):
+            ax.set_title(style[:-3])
+        else:
+            ax.set_title(style)
+        if i == 6 and magic_plot_type_integer == 0:
             ax.legend(loc="upper right")
-        if i == 6 and t == 2:
+        if i == 6 and magic_plot_type_integer == 2:
             ax.legend(loc="lower right")
     for ax in fig.get_axes():
         ax.label_outer()
@@ -96,8 +87,9 @@ def make_lambda_combo_plot(all_data: GROUPED_RECORDED_DATA, t: int):
 @dataclasses.dataclass
 class LambdaGroup:
     noise: float
-    distance_error_pairs_h: Dict[int, RecordedExperimentData]
-    distance_error_pairs_v: Dict[int, RecordedExperimentData]
+    rep: DecodingProblemDesc
+    distance_error_pairs_h: Dict[int, ShotData]
+    distance_error_pairs_v: Dict[int, ShotData]
 
     @functools.cached_property
     def combo_data(self) -> Tuple[List[int], List[float]]:
@@ -118,28 +110,24 @@ class LambdaGroup:
                 print("WARNING FILLING IN FAKE DATA REMOVE")
 
             if p1 and p2:
-                p1 = total_error_to_per_round_error(p1, 3)
-                p2 = total_error_to_per_round_error(p2, 3)
+                cells = int(math.ceil(self.rep.rounds / self.rep.code_distance))
+                p1 = total_error_to_per_piece_error(p1, cells)
+                p2 = total_error_to_per_piece_error(p2, cells)
                 p_either = 1 - (1 - p1) * (1 - p2)
                 xs.append(d)
                 ys.append(p_either)
         return xs, ys
 
     @staticmethod
-    def groups_from_data(data: GROUPED_RECORDED_DATA) -> Dict[float, 'LambdaGroup']:
+    def groups_from_data(data: ProblemShotData) -> Dict[float, 'LambdaGroup']:
         groups: Dict[float, LambdaGroup] = {}
-        for k1 in data.keys():
-            g1 = data[k1]
-            for k2 in g1.keys():
-                g2 = g1[k2]
-                for physical_error_rate in g2.keys():
-                    if physical_error_rate not in groups:
-                        groups[physical_error_rate] = LambdaGroup(physical_error_rate, {}, {})
-                    g = groups[physical_error_rate]
-                    d = g.distance_error_pairs_h if k2.obs == "H" else g.distance_error_pairs_v
-                    assert k2.tile_height == k2.tile_width // 2
-                    assert k2.code_distance_1qdep == k2.tile_height * 4
-                    d[k2.code_distance_1qdep] = g2[physical_error_rate]
+        for key, val in data.data.items():
+            if key.noise not in groups:
+                groups[key.noise] = LambdaGroup(key.noise, key, {}, {})
+            g = groups[key.noise]
+            d = g.distance_error_pairs_h if key.preserved_observable in "HX" else g.distance_error_pairs_v
+            assert key.code_distance not in d
+            d[key.code_distance] = val
         return groups
 
     @functools.cached_property
@@ -160,12 +148,12 @@ class LambdaGroup:
     def projected_required_qubit_count(self, target_error: float, style: str) -> int:
         d = int(math.ceil(self.projected_distance(target_error)))
         u = int(math.ceil(d / 4))
-        lay = HoneycombLayout(tile_width=u * 2, tile_height=u, sub_rounds=1, style=style, obs="H", noise=0)
+        lay = HoneycombLayout(data_width=u * 4, data_height=u * 6, sub_rounds=1, style=style, obs="H", noise=0)
         assert lay.code_distance_1qdep in [d, d + 1, d + 2, d + 3]
         return lay.num_qubits
 
 
-def plot_quop_regions(data: GROUPED_RECORDED_DATA,
+def plot_quop_regions(data: ProblemShotData,
                       *,
                       style: str,
                       fig: plt.Figure = None,
@@ -202,11 +190,11 @@ def plot_quop_regions(data: GROUPED_RECORDED_DATA,
     ax.grid()
 
 
-def plot_lambda_line_fits(data: GROUPED_RECORDED_DATA,
-                *,
-                p2i: Dict[float, int],
-                fig: plt.Figure = None,
-                ax: plt.Axes = None):
+def plot_lambda_line_fits(data: ProblemShotData,
+                          *,
+                          p2i: Dict[float, int],
+                          fig: plt.Figure = None,
+                          ax: plt.Axes = None):
     assert (fig is None) == (ax is None)
     if fig is None:
         fig = plt.figure()
@@ -237,7 +225,7 @@ def plot_lambda_line_fits(data: GROUPED_RECORDED_DATA,
     ax.grid()
 
 
-def plot_lambda(data: GROUPED_RECORDED_DATA,
+def plot_lambda(data: ProblemShotData,
                 *,
                 fig: plt.Figure = None,
                 ax: plt.Axes = None):

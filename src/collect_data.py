@@ -3,38 +3,107 @@ import dataclasses
 import math
 import pathlib
 import time
-from typing import Dict, Tuple, Optional
+from typing import Optional, Tuple, Dict, List, Callable, Any
+
+import stim
 
 from decoding import sample_decode_count_correct
-from honeycomb_circuit import generate_honeycomb_circuit
-from honeycomb_layout import HoneycombLayout
 from probability_util import log_binomial, binary_search
 
 CSV_HEADER = ",".join([
-    "tile_width",
-    "tile_height",
-    "sub_rounds",
-    "physical_error_rate",
+    "data_width",
+    "data_height",
+    "rounds",
+    "noise",
     "circuit_style",
     "preserved_observable",
+    "code_distance",
+    "num_qubits",
     "num_shots",
     "num_correct",
     "total_processing_seconds",
+    "decoder",
+    "version",
 ])
+CSV_HEADER_VERSION = 2
 
 
-def collect_simulated_experiment_data(*cases: HoneycombLayout,
+@dataclasses.dataclass(frozen=True, unsafe_hash=True, order=True)
+class DecodingProblemDesc:
+    # noinspection PyUnresolvedReferences
+    """Succinct data summarizing a decoding problem.
+
+    Attributes:
+        data_width: The width of the grid of data qubits.
+        data_height: The height of the grid of data qubits.
+        code_distance: int
+        num_qubits: int
+        rounds: Identifying information about the problem. The width of the grid of data qubits.
+        noise: int
+        circuit_style: str
+        preserved_observable: str
+        decoder: The name of the decoder that was used.
+    """
+    data_width: int
+    data_height: int
+    code_distance: int
+    num_qubits: int
+    rounds: int
+    noise: float
+    circuit_style: str
+    preserved_observable: str
+    decoder: str
+
+    def with_changes(self,
+                     *,
+                     data_width: Optional[int] = None,
+                     data_height: Optional[int] = None,
+                     code_distance: Optional[int] = None,
+                     num_qubits: Optional[int] = None,
+                     rounds: Optional[int] = None,
+                     noise: Optional[float] = None,
+                     circuit_style: Optional[str] = None,
+                     preserved_observable: Optional[str] = None,
+                     decoder: Optional[str] = None,
+    ) -> 'DecodingProblemDesc':
+        return DecodingProblemDesc(
+            data_width=self.data_width if data_width is None else data_width,
+            data_height=self.data_height if data_height is None else data_height,
+            code_distance=self.code_distance if code_distance is None else code_distance,
+            num_qubits=self.num_qubits if num_qubits is None else num_qubits,
+            rounds=self.rounds if rounds is None else rounds,
+            noise=self.noise if noise is None else noise,
+            circuit_style=self.circuit_style if circuit_style is None else circuit_style,
+            preserved_observable=self.preserved_observable if preserved_observable is None else preserved_observable,
+            decoder=self.decoder if decoder is None else decoder,
+        )
+
+
+@dataclasses.dataclass
+class DecodingProblem:
+    # noinspection PyUnresolvedReferences
+    """Defines a decoding problem to sample from.
+
+    Attributes:
+        desc: Identifying information about the problem.
+        circuit_maker: Produces a stim circuit with annotated noise and detectors.
+    """
+    desc: DecodingProblemDesc
+    circuit_maker: Callable[[], stim.Circuit]
+
+
+def collect_simulated_experiment_data(problems: List[DecodingProblem],
+                                      *,
                                       min_shots: int,
                                       max_shots: int,
                                       max_batch: Optional[int] = None,
                                       max_sample_std_dev: float = 1,
                                       min_seen_logical_errors: int,
-                                      use_internal_decoder: bool = False,
                                       out_path: Optional[str],
                                       discard_previous_data: bool):
     """
     Args:
-        cases: The layouts to sample from.
+        problems: The decoding problems to collect sample data from.
         min_shots: The minimum number of samples to take from each case.
 
             This property effectively controls the quality of estimates of error rates when the true
@@ -59,8 +128,6 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
         min_seen_logical_errors: More samples will be taken until the number of logical errors seen
             is at least this large. Set to 10 or 100 for fast estimates. Set to 1000 or 10000 for
             good statistical estimates of low probability errors.
-        use_internal_decoder: Defaults to False. Switches the decoder from pymatching to an internal
-            decoder, which must be present as a binary in the source directory.
         out_path: Where to write the CSV sample statistic data. Setting this to none doesn't write
             to file; only writes to stdout.
         max_batch: Defaults to unused. If set, then at most this many shots are collected at one
@@ -77,8 +144,7 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
     if max_batch is None:
         max_batch = max_shots
 
-    for lay in cases:
-        circuit = generate_honeycomb_circuit(lay)
+    for problem in problems:
         num_seen_errors = 0
         num_next_shots = min_shots
         total_shots = 0
@@ -86,20 +152,24 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
             t0 = time.monotonic()
             num_correct = sample_decode_count_correct(
                 num_shots=num_next_shots,
-                circuit=circuit,
-                use_internal_decoder=use_internal_decoder,
+                circuit=problem.circuit_maker(),
+                decoder=problem.desc.decoder,
             )
             t1 = time.monotonic()
             record = ",".join(str(e) for e in [
-                lay.tile_width,
-                lay.tile_height,
-                lay.sub_rounds,
-                lay.noise,
-                lay.style,
-                lay.obs,
+                problem.desc.data_width,
+                problem.desc.data_height,
+                problem.desc.rounds,
+                problem.desc.noise,
+                problem.desc.circuit_style,
+                problem.desc.preserved_observable,
+                problem.desc.code_distance,
+                problem.desc.num_qubits,
                 num_next_shots,
                 num_correct,
                 t1 - t0,
+                problem.desc.decoder,
+                CSV_HEADER_VERSION,
             ])
             if out_path is not None:
                 with open(out_path, "a") as f:
@@ -120,9 +190,10 @@ def collect_simulated_experiment_data(*cases: HoneycombLayout,
 
 
 @dataclasses.dataclass
-class RecordedExperimentData:
+class ShotData:
     num_shots: int = 0
     num_correct: int = 0
+    total_processing_seconds: float = 0
 
     def likely_error_rate_bounds(self, *, desired_ratio_vs_max_likelihood: float) -> Tuple[float, float]:
         """Compute relative-likelihood bounds.
@@ -153,36 +224,51 @@ class RecordedExperimentData:
         return (self.num_shots - self.num_correct) / self.num_shots
 
 
-GROUPED_RECORDED_DATA = Dict[HoneycombLayout, Dict[HoneycombLayout, Dict[float, RecordedExperimentData]]]
+@dataclasses.dataclass
+class ProblemShotData:
+    data: Dict[DecodingProblemDesc, ShotData]
 
-def read_recorded_data(*paths: str) -> GROUPED_RECORDED_DATA:
-    result: GROUPED_RECORDED_DATA = {}
+    def grouped_by(self, key: Callable[[DecodingProblemDesc], Any]) -> Dict[Any, 'ProblemShotData']:
+        result = {}
+        for k, v in self.data.items():
+            result.setdefault(key(k), ProblemShotData({})).data[k] = v
+        return {k: result[k] for k in sorted(result.keys())}
+
+    def merged_by(self, key: Callable[[DecodingProblemDesc], Any]) -> Dict[Any, 'ShotData']:
+        result: Dict[Any, 'ShotData'] = {}
+        for k, v in self.data.items():
+            d = result.setdefault(key(k), ShotData())
+            d.num_shots += v.num_shots
+            d.num_correct += v.num_correct
+            d.total_processing_seconds += v.total_processing_seconds
+        return {k: result[k] for k in sorted(result.keys())}
+
+    def filter(self, predicate: Callable[[DecodingProblemDesc], bool]) -> 'ProblemShotData':
+        result = ProblemShotData({})
+        for k, v in self.data.items():
+            if predicate(k):
+                result.data[k] = v
+        return result
+
+
+def read_recorded_data(*paths: str) -> ProblemShotData:
+    result = ProblemShotData({})
     for path in paths:
         with open(path, "r") as f:
             for row in csv.DictReader(f):
-                lay1 = HoneycombLayout(
-                    noise=0,
-                    tile_width=1,
-                    tile_height=1,
-                    sub_rounds=1,
-                    style=row["circuit_style"],
-                    obs=row["preserved_observable"],
+                key = DecodingProblemDesc(
+                    code_distance=int(row["code_distance"]),
+                    num_qubits=int(row["num_qubits"]),
+                    data_width=int(row["data_width"]),
+                    data_height=int(row["data_height"]),
+                    rounds=int(row["rounds"]),
+                    noise=float(row["noise"]),
+                    circuit_style=row["circuit_style"],
+                    preserved_observable=row["preserved_observable"],
+                    decoder=row["decoder"],
                 )
-                g1 = result.setdefault(lay1, {})
-
-                lay2 = HoneycombLayout(
-                    noise=0,
-                    tile_width=int(row["tile_width"]),
-                    tile_height=int(row["tile_height"]),
-                    sub_rounds=int(row["sub_rounds"]),
-                    style=row["circuit_style"],
-                    obs=row["preserved_observable"],
-                )
-                g2 = g1.setdefault(lay2, {})
-
-                physical_error_rate = float(row["physical_error_rate"])
-                g3 = g2.setdefault(physical_error_rate, RecordedExperimentData())
-
-                g3.num_shots += int(row["num_shots"])
-                g3.num_correct += int(row["num_correct"])
+                val = result.data.setdefault(key, ShotData())
+                val.num_shots += int(row["num_shots"])
+                val.num_correct += int(row["num_correct"])
+                val.total_processing_seconds += float(row["total_processing_seconds"])
     return result

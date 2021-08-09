@@ -1,29 +1,30 @@
+import math
 from typing import Optional
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
-from collect_data import read_recorded_data, GROUPED_RECORDED_DATA
+from collect_data import ProblemShotData, DecodingProblemDesc
 
 
-def total_error_to_per_round_error(error_rate: float, rounds: int) -> float:
+def total_error_to_per_piece_error(error_rate: float, pieces: int) -> float:
     """Convert from total error rate to per-round error rate."""
     if error_rate > 0.5:
-        return 1 - total_error_to_per_round_error(1 - error_rate, rounds)
+        return 1 - total_error_to_per_piece_error(1 - error_rate, pieces)
     assert 0 <= error_rate <= 0.5
     randomize_rate = 2*error_rate
-    round_randomize_rate = 1 - (1 - randomize_rate)**(1 / rounds)
+    round_randomize_rate = 1 - (1 - randomize_rate)**(1 / pieces)
     round_error_rate = round_randomize_rate / 2
     return round_error_rate
 
 
-def plot_data(data: GROUPED_RECORDED_DATA,
+def plot_data(data: ProblemShotData,
+              *,
               title: str,
               out_path: Optional[str] = None,
               show: bool = False,
               fig: plt.Figure = None,
               ax: plt.Axes = None,
-              correction: Optional[int] = None,
               legend: bool = True,
               focus_on_threshold: bool = True):
     if out_path is None and show is None and ax is None:
@@ -36,31 +37,36 @@ def plot_data(data: GROUPED_RECORDED_DATA,
 
     markers = "ov*sp^<>8PhH+xXDd|" * 100
     order = 0
-    for k1 in sorted(data.keys()):
-        g1 = data[k1]
-        for k2 in sorted(g1.keys()):
-            g2 = g1[k2]
-            c = k2.sub_rounds // 3 if correction is None else correction
-            cor = lambda p: total_error_to_per_round_error(p, rounds=c)
-            xs = []
-            ys = []
-            x_bounds = []
-            ys_low = []
-            ys_high = []
-            for physical_error_rate in sorted(g2.keys()):
-                datum = g2[physical_error_rate]
-                # Show curve going through max likelihood estimate, unless it's at zero error.
-                if datum.num_correct < datum.num_shots:
-                    xs.append(physical_error_rate)
-                    ys.append(cor(datum.logical_error_rate))
-                # Show relative-likelihood-above-1e-3 error bars as a colored region.
-                low, high = datum.likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3)
-                x_bounds.append(physical_error_rate)
-                ys_low.append(cor(low))
-                ys_high.append(cor(high))
-            ax.plot(xs, ys, label=k2.legend_label(), marker=markers[order], zorder=100 - order)
-            ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
-            order += 1
+    d: DecodingProblemDesc
+    for key, vals in data.grouped_by(lambda e: e.with_changes(noise=0)).items():
+        cells = int(math.ceil(key.rounds / key.code_distance))
+        def cor(p: float) -> float:
+            return total_error_to_per_piece_error(p, pieces=cells)
+
+        xs = []
+        ys = []
+        x_bounds = []
+        ys_low = []
+        ys_high = []
+
+        v2 = {k.noise: v for k, v in vals.data.items()}
+        for noise in sorted(v2.keys()):
+            shot_data = v2[noise]
+            # Show curve going through max likelihood estimate, unless it's at zero error.
+            if shot_data.num_correct < shot_data.num_shots:
+                xs.append(noise)
+                ys.append(cor(shot_data.logical_error_rate))
+            # Show relative-likelihood-above-1e-3 error bars as a colored region.
+            low, high = shot_data.likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3)
+            x_bounds.append(noise)
+            ys_low.append(cor(low))
+            ys_high.append(cor(high))
+        label = f"{key.rounds} rounds, {key.data_width}x{key.data_height} data"
+        if key.decoder.endswith("correlated"):
+            label += ",corr"
+        ax.plot(xs, ys, label=label, marker=markers[order], zorder=100 - order)
+        ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
+        order += 1
 
     if data and legend:
         ax.legend(loc="lower right")
