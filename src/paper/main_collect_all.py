@@ -32,9 +32,14 @@ def main():
             raise ValueError("Need 0 < jobs_count and 0 <= job_id < jobs_count")
 
     problems = honeycomb_problems() + surface_code_problems(surface_dir)
+    print(f"Total problems (before spread): {len(problems)}", file=sys.stderr)
     problems *= jobs_spread
+    print(f"Total problems (spread): {len(problems)}", file=sys.stderr)
     if job_id is not None:
         problems = problems[job_id::jobs_count]
+    print(f"Problems being run: {len(problems)}", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("", file=sys.stderr)
 
     collect_simulated_experiment_data(
         problems,
