@@ -42,23 +42,23 @@ def main():
 
 
 def make_lambda_combo_plot(all_data: ProblemShotData, magic_plot_type_integer: int):
-    expected_styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
+    styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500",
+              "surface_SD6", None, None, "surface_SI500"]
     seen_probabilities = {
         k.noise
         for k in all_data.data
     }
     p2i = {p: i for i, p in enumerate(sorted(seen_probabilities))}
     groups = all_data.grouped_by(lambda e: e.circuit_style)
-    for k in groups.keys():
-        if k not in expected_styles:
-            raise NotImplementedError()
 
     fig = plt.figure()
-    gs = fig.add_gridspec(1, 4, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(2, 4, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
-    for i, style in enumerate(expected_styles):
+    for i, style in enumerate(styles):
+        if style is None:
+            continue
         style_data = groups.get(style, ProblemShotData({}))
-        ax: plt.Axes = axs[i]
+        ax: plt.Axes = axs[i // 4][i % 4]
 
         if magic_plot_type_integer == 0:
             plot_lambda_line_fits(
@@ -75,9 +75,9 @@ def make_lambda_combo_plot(all_data: ProblemShotData, magic_plot_type_integer: i
             ax.set_title(style[:-3])
         else:
             ax.set_title(style)
-        if i == 6 and magic_plot_type_integer == 0:
+        if i == 3 and magic_plot_type_integer == 0:
             ax.legend(loc="upper right")
-        if i == 6 and magic_plot_type_integer == 2:
+        if i == 3 and magic_plot_type_integer == 2:
             ax.legend(loc="lower right")
     for ax in fig.get_axes():
         ax.label_outer()
@@ -126,7 +126,9 @@ class LambdaGroup:
                 groups[key.noise] = LambdaGroup(key.noise, key, {}, {})
             g = groups[key.noise]
             d = g.distance_error_pairs_h if key.preserved_observable in "HX" else g.distance_error_pairs_v
-            assert key.code_distance not in d
+            if key.decoder.endswith("_correlated"):
+                continue
+            assert key.code_distance not in d, key
             d[key.code_distance] = val
         return groups
 
