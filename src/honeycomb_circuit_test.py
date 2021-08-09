@@ -23,8 +23,8 @@ def test_circuit_has_decomposing_error_model(
     if style == "SI500" and sub_rounds % 3 != 0:
         return
     circuit = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=tile_width,
-        tile_height=max(1, tile_width + tile_height_extra),
+        data_width=2 * tile_width,
+        data_height=6 * max(1, tile_width + tile_height_extra),
         sub_rounds=sub_rounds,
         noise=0.001,
         style=style,
@@ -35,8 +35,8 @@ def test_circuit_has_decomposing_error_model(
 
 def test_circuit_details_SD6():
     actual = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=1003,
         noise=0.001,
         style="SD6",
@@ -288,8 +288,8 @@ def test_circuit_details_SD6():
 
 def test_circuit_details_PC3():
     actual = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=1003,
         noise=0.001,
         style="PC3",
@@ -495,8 +495,8 @@ def test_circuit_details_PC3():
 
 def test_circuit_details_EM3():
     actual = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=1003,
         noise=0.001,
         style="EM3",
@@ -590,8 +590,8 @@ def test_circuit_details_EM3():
 
 def test_circuit_details_EM3_v2():
     actual = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=1003,
         noise=0.001,
         style="EM3_v2",
@@ -2089,8 +2089,8 @@ def test_circuit_details_EM3_v2():
 
 def test_circuit_details_EM3_h_obs():
     actual = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=1003,
         noise=0.001,
         style="EM3",
@@ -2206,8 +2206,8 @@ def test_circuit_details_EM3_h_obs():
 
 def test_circuit_details_si500():
     actual = generate_honeycomb_circuit(HoneycombLayout(
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=3 * 300,
         noise=0.001,
         style="SI500",

@@ -3,7 +3,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from collect_data import collect_simulated_experiment_data, RecordedExperimentData, read_recorded_data
+from collect_data import collect_simulated_experiment_data, ShotData, read_recorded_data
 from honeycomb_layout import HoneycombLayout
 from plotting import plot_data
 from probability_util import log_binomial
@@ -13,15 +13,15 @@ def test_collect_and_plot():
     with tempfile.TemporaryDirectory() as d:
         f = d + "/tmp.csv"
         collect_simulated_experiment_data(
-            *[
+            [
                 HoneycombLayout(
                     noise=p,
-                    tile_width=d,
-                    tile_height=d,
+                    data_width=2 * d,
+                    data_height=6 * d,
                     sub_rounds=30,
                     style="SD6",
                     obs="V",
-                )
+                ).as_decoder_problem("pymatching")
                 for p in [1e-5, 1e-4]
                 for d in [1, 2]
             ],
@@ -33,34 +33,34 @@ def test_collect_and_plot():
             min_seen_logical_errors=1,
         )
 
-        plot_data(read_recorded_data(f), show=True, out_path=d + "/tmp.png", title="Test")
+        plot_data(read_recorded_data(f), show=False, out_path=d + "/tmp.png", title="Test")
 
 
 
 
 def test_likely_error_rate_bounds_shrink_towards_half():
     np.testing.assert_allclose(
-        RecordedExperimentData(num_shots=10**5, num_correct=10**5 / 2).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
+        ShotData(num_shots=10 ** 5, num_correct=10 ** 5 / 2).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
         (0.494122, 0.505878),
         rtol=1e-4,
     )
     np.testing.assert_allclose(
-        RecordedExperimentData(num_shots=10**4, num_correct=10**4 / 2).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
+        ShotData(num_shots=10 ** 4, num_correct=10 ** 4 / 2).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
         (0.481422, 0.518578),
         rtol=1e-4,
     )
     np.testing.assert_allclose(
-        RecordedExperimentData(num_shots=10**4, num_correct=10**4 / 2).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-2),
+        ShotData(num_shots=10 ** 4, num_correct=10 ** 4 / 2).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-2),
         (0.48483, 0.51517),
         rtol=1e-4,
     )
     np.testing.assert_allclose(
-        RecordedExperimentData(num_shots=1000, num_correct=500).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
+        ShotData(num_shots=1000, num_correct=500).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
         (0.44143, 0.55857),
         rtol=1e-4,
     )
     np.testing.assert_allclose(
-        RecordedExperimentData(num_shots=100, num_correct=50).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
+        ShotData(num_shots=100, num_correct=50).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=1e-3),
         (0.3204, 0.6796),
         rtol=1e-4,
     )
@@ -76,7 +76,7 @@ def test_likely_error_rate_bounds_shrink_towards_half():
 ])
 def test_likely_error_rate_bounds_vs_log_binomial(n: int, c: int, ratio: float):
 
-    a, b = RecordedExperimentData(num_shots=n, num_correct=c).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=ratio)
+    a, b = ShotData(num_shots=n, num_correct=c).likely_error_rate_bounds(desired_ratio_vs_max_likelihood=ratio)
 
     raw = log_binomial(p=(n - c) / n, n=n, hits=n - c)
     low = log_binomial(p=a, n=n, hits=n - c)

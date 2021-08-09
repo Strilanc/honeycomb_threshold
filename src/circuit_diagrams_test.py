@@ -18,8 +18,8 @@ def assert_same_diagram(actual, expected):
 def test_plot_SD6():
     assert_same_diagram(plot_circuit(generate_honeycomb_circuit(HoneycombLayout(
         noise=0.001,
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=13,
         style="SD6",
         obs="V",
@@ -67,8 +67,8 @@ def test_plot_SD6():
 def test_plot_PC3():
     assert_same_diagram(plot_circuit(generate_honeycomb_circuit(HoneycombLayout(
         noise=0.001,
-        tile_width=1,
-        tile_height=1,
+        data_width=2,
+        data_height=6,
         sub_rounds=20,
         style="PC3",
         obs="V",
@@ -102,8 +102,8 @@ def test_plot_PC3():
 def test_plot_EM3():
     assert_same_diagram(plot_circuit(generate_honeycomb_circuit(HoneycombLayout(
         noise=0.001,
-        tile_width=2,
-        tile_height=2,
+        data_width=2 * 2,
+        data_height=6 * 2,
         sub_rounds=20,
         style="EM3",
         obs="V",

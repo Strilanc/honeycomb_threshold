@@ -5,15 +5,15 @@ from plotting import plot_data
 
 def main():
     collect_simulated_experiment_data(
-        *[
+        [
             HoneycombLayout(
                 noise=p,
-                tile_width=d * 2,
-                tile_height=d,
+                data_width=d * 4,
+                data_height=d * 6,
                 sub_rounds=30,
                 style="EM3_v2",
                 obs="H",
-            )
+            ).as_decoder_problem("pymatching")
             for d in [1, 2]
             for p in [0.001, 0.002, 0.003]
         ],

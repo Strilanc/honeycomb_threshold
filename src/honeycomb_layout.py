@@ -2,8 +2,12 @@
 
 import functools
 import dataclasses
+import math
 from typing import List, Dict, Iterable, Tuple
 
+import stim
+
+from collect_data import DecodingProblemDesc, DecodingProblem
 from noise import NoiseModel
 
 
@@ -78,8 +82,8 @@ class HoneycombLayout:
     """Computes information about the honeycomb code layout, such as hex face locations.
 
     Attributes:
-        tile_width: The number of times to horizontally repeat the tiling unit of the code.
-        tile_height: The number of times to vertically repeat the tiling unit of the code.
+        data_width: The number of data qubit columns.
+        data_height: The number of data qubit rows.
         sub_rounds: The number of edge parity measurements to perform (counting X, Y, and Z
             separately).
         noise: Determines the strength of noisy operations, relative to the error model.
@@ -92,16 +96,20 @@ class HoneycombLayout:
         obs: The observable to initialize and measure fault tolerantly. Valid values are:
             "H": Horizontal observable.
             "V": Vertical observable.
-        correlated_decoding: Whether or not to use correlation analysis when matching errors.
     """
 
-    tile_width: int
-    tile_height: int
+    data_width: int
+    data_height: int
     sub_rounds: int
     style: str
     obs: str
     noise: float
-    correlated_decoding: bool = False
+
+    def __post_init__(self):
+        if self.data_width % 2 != 0:
+            raise NotImplementedError("need data_width % 2 == 0")
+        if self.data_height % 6 != 0:
+            raise NotImplementedError("need data_height % 6 == 0")
 
     @functools.cached_property
     def noise_model(self) -> NoiseModel:
@@ -121,6 +129,26 @@ class HoneycombLayout:
         r = c.real % self.coord_width
         i = c.imag % self.coord_height
         return r + i * 1j
+
+    def make_circuit(self) -> stim.Circuit:
+        from honeycomb_circuit import generate_honeycomb_circuit
+        return generate_honeycomb_circuit(self)
+
+    def as_decoder_problem(self, decoder: str) -> DecodingProblem:
+        return DecodingProblem(self.as_decoder_problem_desc(decoder), self.make_circuit)
+
+    def as_decoder_problem_desc(self, decoder: str) -> DecodingProblemDesc:
+        return DecodingProblemDesc(
+            data_width=self.data_width,
+            data_height=self.data_height,
+            rounds=int(math.ceil(self.sub_rounds / 3)),
+            noise=self.noise,
+            circuit_style=f"honeycomb_{self.style}",
+            preserved_observable=self.obs,
+            decoder=decoder,
+            code_distance=self.code_distance_1qdep,
+            num_qubits=self.num_qubits,
+        )
 
     def first_edges_around_hex(self, center: complex) -> Tuple[Edge, ...]:
         offsets = [
@@ -375,16 +403,16 @@ class HoneycombLayout:
         return result
 
     @property
-    def data_width(self) -> int:
-        return self.tile_width * 2
+    def tile_width(self) -> int:
+        return self.data_width // 2
+
+    @property
+    def tile_height(self) -> int:
+        return self.data_height // 6
 
     @property
     def code_distance_1qdep(self) -> int:
         return min(self.data_width, self.data_height // 3 * 2)
-
-    @property
-    def data_height(self) -> int:
-        return self.tile_height * 6
 
     def legend_label(self):
         terms = [
