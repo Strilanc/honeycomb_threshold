@@ -24,22 +24,24 @@ def main():
 
     all_data = read_recorded_data(*csvs)
     for zoom in [False]:
-        plot_thresholds(all_data, zoom)
+        for decoder in ["internal", "internal_correlated"]:
+            plot_thresholds(all_data, zoom, decoder)
     plt.show()
 
 
-def plot_thresholds(all_data: ProblemShotData, zoom_in: bool):
+def plot_thresholds(all_data: ProblemShotData, zoom_in: bool, desired_decoder: str):
     fig = plt.figure()
     gs = fig.add_gridspec(2, 4, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
-    styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
-    # styles = ["surface_SD6", "honeycomb_SD6", "surface_SI500", "honeycomb_SI500"]
+    # styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
+    styles = ["surface_SD6", "surface_SI500", "honeycomb_SD6", "honeycomb_SI500"]
     expected_obs_styles = [
         (obs, style)
         for obs in ["H", "V"]
         for style in styles
     ]
-    groups = all_data.grouped_by(lambda desc: (desc.preserved_observable.replace("X", "H").replace("Z", "V"), desc.circuit_style))
+    filtered = all_data.filter(lambda desc: desc.decoder == desired_decoder)
+    groups = filtered.grouped_by(lambda desc: (desc.preserved_observable.replace("X", "H").replace("Z", "V"), desc.circuit_style))
 
     for i, k in enumerate(expected_obs_styles):
         v = groups.get(k, ProblemShotData({}))
@@ -49,7 +51,7 @@ def plot_thresholds(all_data: ProblemShotData, zoom_in: bool):
             title="",
             ax=ax,
             fig=fig,
-            legend=i == 7 or True,
+            legend=i == 7,
             focus_on_threshold=zoom_in)
         if i < 4:
             if k[1].endswith("_v2"):
