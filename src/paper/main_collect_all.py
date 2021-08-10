@@ -23,8 +23,8 @@ def main():
     out_path = args.get('out_file', None)
     job_id = args.get('job_id', None)
     jobs_count = args.get('jobs_count', None)
-    surface_dir = args.get('surface_code_problems_directory', None)
-    jobs_spread = args.get('job_spread', 1)
+    surface_dir = args.get('surface_code_problems_directory') or f"{pathlib.Path(__file__).parent}/surface_code_circuits"
+    jobs_spread = args.get('job_spread') or 1
     if (job_id is None) != (jobs_count is None):
         raise ValueError("Must specify both or neither of --job_id, --jobs_count")
     if job_id is not None:
