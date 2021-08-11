@@ -32,14 +32,20 @@ def main():
 
     all_data = read_recorded_data(*csvs)
 
-    plot_lambda_line_fits_combo(all_data)
-    plot_lambda_combo(all_data)
-    plot_teraquop_combo(all_data)
+    fig1, _ = plot_lambda_line_fits_combo(all_data)
+    fig2, _ = plot_lambda_combo(all_data)
+    fig3, _ = plot_teraquop_combo(all_data)
+    fig1.set_size_inches(13, 10)
+    fig1.savefig("gen/linefits.pdf", bbox_inches='tight')
+    fig2.set_size_inches(13, 5)
+    fig2.savefig("gen/lambda.pdf", bbox_inches='tight')
+    fig3.set_size_inches(13, 5)
+    fig3.savefig("gen/teraquop.pdf", bbox_inches='tight')
 
     plt.show()
 
 
-def plot_lambda_line_fits_combo(all_data: ProblemShotData):
+def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
     styles = {
         "SD6": [
             ("honeycomb_SD6", "internal"),
@@ -119,7 +125,7 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData):
     return fig, axs
 
 
-def plot_lambda_combo(all_data: ProblemShotData):
+def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
     styles = {
         "SD6": [
             ("honeycomb_SD6", "internal"),
@@ -200,7 +206,7 @@ def plot_lambda_combo(all_data: ProblemShotData):
     return fig, axs
 
 
-def plot_teraquop_combo(all_data: ProblemShotData):
+def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
     styles = {
         "SD6": [
             ("honeycomb_SD6", "internal"),
@@ -365,77 +371,6 @@ class LambdaGroup:
             raise NotImplementedError()
         assert abs(q - math.floor(q + 0.5)) < 1e-5
         return q
-
-
-def plot_quop_regions(data: ProblemShotData,
-                      *,
-                      style: str,
-                      fig: plt.Figure = None,
-                      ax: plt.Axes = None):
-    assert (fig is None) == (ax is None)
-    if fig is None:
-        fig = plt.figure()
-        ax = fig.add_subplot()
-
-    groups = LambdaGroup.groups_from_data(data)
-    ps = [1e-6, 1e-9, 1e-12]
-    labels = ["megaquop regime", "gigaquop regime", "teraquop+ regime"]
-    curves = [([], []) for _ in range(4)]
-    y_max = 1e5
-
-    for noise in sorted(groups.keys()):
-        group = groups[noise]
-        if group.appears_to_be_suppressing_errors:
-            curves[3][0].append(noise)
-            curves[3][1].append(y_max)
-            for k, p in enumerate(ps):
-                q = group.projected_required_qubit_count(p, style=style)
-                curves[k][0].append(noise)
-                curves[k][1].append(q)
-    for k in range(3):
-        ax.fill_between(curves[k][0], curves[k][1], curves[k + 1][1], label=labels[k])
-    ax.loglog()
-    highlight_low_confidence(groups=groups,
-                             ax=ax,
-                             x_min=1e-4,
-                             x_max=2e-2,
-                             y_min=1e1,
-                             y_max=y_max)
-    ax.set_xlabel("Noise")
-    ax.set_ylabel("Physical qubits per logical qubit")
-    ax.grid()
-
-
-def highlight_low_confidence(*,
-                             ax: plt.Axes,
-                             groups: Dict[float, LambdaGroup],
-                             x_min: float,
-                             x_max: float,
-                             y_min: float,
-                             y_max: float):
-    poor_xs = [x_min]
-    poor_ys = [y_min]
-    noises = sorted(groups.keys())
-    for k, noise in enumerate(noises):
-        group = groups[noise]
-        py = y_max if group.has_low_confidence_extrapolation < 3 else y_min
-        if py != poor_ys[-1]:
-            if k == 0:
-                x1 = x_min
-            else:
-                x1 = (noises[k - 1] + noises[k]) / 2
-            poor_xs.extend([x1, x1])
-            poor_ys.extend([poor_ys[-1], py])
-    poor_xs.append(x_min)
-    poor_ys.append(poor_ys[-1])
-    ax.set_xlim(x_min, x_max)
-    ax.set_ylim(y_min, y_max)
-    ax.fill_between(poor_xs,
-                    poor_ys,
-                    [y_min] * len(poor_xs),
-                    color='red',
-                    alpha=0.3,
-                    label='<3 data points')
 
 
 if __name__ == '__main__':

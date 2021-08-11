@@ -26,6 +26,7 @@ def plot_data(data: ProblemShotData,
               fig: plt.Figure = None,
               ax: plt.Axes = None,
               legend: bool = True,
+              marker_offset=0,
               focus_on_threshold: bool = True):
     if out_path is None and show is None and ax is None:
         show = True
@@ -64,7 +65,7 @@ def plot_data(data: ProblemShotData,
         label = f"{key.rounds} rounds, {key.data_width}x{key.data_height} data"
         if key.decoder.endswith("correlated"):
             label += ",corr"
-        ax.plot(xs, ys, label=label, marker=markers[order], zorder=100 - order)
+        ax.plot(xs, ys, label=label, marker=markers[order + marker_offset], zorder=100 - order)
         ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
         order += 1
 
@@ -86,8 +87,8 @@ def plot_data(data: ProblemShotData,
     else:
         x_min, x_max = 1e-4, 0.5
         y_min, y_max = 1e-8, 0.5
-    ticks_x = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if x_min <= k*10**-p <= x_max]
-    ticks_y = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if y_min <= k*10**-p <= y_max]
+    ticks_x = [0.5] + [k*10**-p for k in [1] for p in range(1, 10) if x_min <= k*10**-p <= x_max]
+    ticks_y = [0.5] + [k*10**-p for k in [1] for p in range(1, 10) if y_min <= k*10**-p <= y_max]
     ax.set_ylabel("Per-round Logical Error Rate")
     ax.set_xlabel("Noise (p)")
     ax.set_xlim(x_min, x_max)

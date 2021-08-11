@@ -19,7 +19,7 @@ def main():
         data_height=6,
         sub_rounds=30,
         style="SD6",
-        obs="H",
+        obs="V",
     ))
     # c = surface_code_circuit("surface_code_circuits", "SD6", 0.001, "X", 7)
     g = detector_error_model_to_nx_graph(c.detector_error_model(decompose_errors=True))
