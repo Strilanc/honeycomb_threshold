@@ -49,28 +49,28 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, 
     styles = {
         "SD6": [
             ("honeycomb_SD6", "internal"),
+            ("honeycomb_SD6", "internal_correlated"),
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
-            ("honeycomb_SD6", "internal_correlated"),
-        ],
-        "EM3": [
-            ("honeycomb_EM3_v2", "internal"),
-            None,
-            None,
-            ("honeycomb_EM3_v2", "internal_correlated"),
-        ],
-        "PC3": [
-            ("honeycomb_PC3", "internal"),
-            None,
-            None,
-            ("honeycomb_PC3", "internal_correlated"),
         ],
         "SI500": [
             ("honeycomb_SI500", "internal"),
+            ("honeycomb_SI500", "internal_correlated"),
             ("surface_SI500", "internal"),
             ("surface_SI500", "internal_correlated"),
-            ("honeycomb_SI500", "internal_correlated"),
         ],
+        "EM3": [
+            None,
+            None,
+            ("honeycomb_EM3_v2", "internal"),
+            ("honeycomb_EM3_v2", "internal_correlated"),
+        ],
+        # "PC3": [
+        #     ("honeycomb_PC3", "internal"),
+        #     ("honeycomb_PC3", "internal_correlated"),
+        #     None,
+        #     None,
+        # ],
     }
     seen_probabilities = {
         k.noise
@@ -80,15 +80,18 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, 
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
 
     fig = plt.figure()
-    gs = fig.add_gridspec(4, 4, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=len(styles), nrows=4, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
+    used = set()
     for col, (name, cases) in enumerate(styles.items()):
         for row, style_decoder in enumerate(cases):
             ax: plt.Axes = axs[row][col]
             if style_decoder is None:
-                ax.remove()
+                ax.axis('off')
                 continue
+            used.add((row, col))
             style_data = all_groups.get(style_decoder, ProblemShotData({}))
+            axs[row][col].set_title(name)
 
             groups = LambdaGroup.groups_from_data(style_data)
             markers = "ov*sp^<>8P+xXDd|"
@@ -112,13 +115,20 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, 
             ax.set_ylim(1e-12, 1e0)
             ax.grid()
 
-        axs[0][col].set_title(name)
 
-    axs[0][0].legend(loc="upper left", bbox_to_anchor=(1.8, -0.1))
-    for ax in fig.get_axes():
-        ax.label_outer()
+    axs[0][2].legend(*axs[0][0].get_legend_handles_labels(), loc="upper left")
+
+    for row in range(4):
+        for col in range(len(styles)):
+            if (row - 1, col) in used:
+                axs[row][col].set_xlabel("")
+                axs[row][col].set_title("")
+            if (row, col - 1) in used:
+                axs[row][col].set_ylabel("")
+
+    for k in range(len(styles)):
+        axs[-1][k].set_xlabel("Code distance")
     for k in range(4):
-        axs[3][k].set_xlabel("Code distance")
         style_decoder = styles["SD6"][k]
         title = style_decoder[0].split("_")[0] + (" (correlated)" if "correlated" in style_decoder[1] else "")
         axs[k][0].set_ylabel(f"{title}\nCode cell error rate")
@@ -133,26 +143,26 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
         ],
-        "EM3": [
-            ("honeycomb_EM3_v2", "internal"),
-            ("honeycomb_EM3_v2", "internal_correlated"),
-        ],
-        "PC3": [
-            ("honeycomb_PC3", "internal"),
-            ("honeycomb_PC3", "internal_correlated"),
-        ],
         "SI500": [
             ("honeycomb_SI500", "internal"),
             ("honeycomb_SI500", "internal_correlated"),
             ("surface_SI500", "internal"),
             ("surface_SI500", "internal_correlated"),
         ],
+        "EM3": [
+            ("honeycomb_EM3_v2", "internal"),
+            ("honeycomb_EM3_v2", "internal_correlated"),
+        ],
+        # "PC3": [
+        #     ("honeycomb_PC3", "internal"),
+        #     ("honeycomb_PC3", "internal_correlated"),
+        # ],
     }
 
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
 
     fig = plt.figure()
-    gs = fig.add_gridspec(1, 4, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=len(styles), nrows=1, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     have_any_poor = False
     for i, (name, cases) in enumerate(styles.items()):
@@ -199,8 +209,7 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
         ax.grid()
 
         ax.set_title(name)
-        if i == 3:
-            ax.legend(loc="upper right")
+    axs[1].legend(loc="upper right")
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
@@ -214,26 +223,26 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
         ],
-        "EM3": [
-            ("honeycomb_EM3_v2", "internal"),
-            ("honeycomb_EM3_v2", "internal_correlated"),
-        ],
-        "PC3": [
-            ("honeycomb_PC3", "internal"),
-            ("honeycomb_PC3", "internal_correlated"),
-        ],
         "SI500": [
             ("honeycomb_SI500", "internal"),
             ("honeycomb_SI500", "internal_correlated"),
             ("surface_SI500", "internal"),
             ("surface_SI500", "internal_correlated"),
         ],
+        "EM3": [
+            ("honeycomb_EM3_v2", "internal"),
+            ("honeycomb_EM3_v2", "internal_correlated"),
+        ],
+        # "PC3": [
+        #     ("honeycomb_PC3", "internal"),
+        #     ("honeycomb_PC3", "internal_correlated"),
+        # ],
     }
 
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
 
     fig = plt.figure()
-    gs = fig.add_gridspec(1, 4, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=len(styles), nrows=1, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     have_any_poor = False
     for i, (name, cases) in enumerate(styles.items()):
@@ -280,8 +289,7 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
         ax.grid()
 
         ax.set_title(name)
-        if i == 3:
-            ax.legend(loc="lower right")
+    axs[1].legend(loc="lower right")
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs

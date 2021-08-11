@@ -16,7 +16,8 @@ def main():
     parser = argparse.ArgumentParser(description="Sample honeycomb error rates.")
     parser.add_argument('--surface_code_problems_directory', type=str, required=False, help="A directory of surface code problems to also do.")
     parser.add_argument('--out_file', type=str, required=False, help="Write to a file in addition to stdout.")
-    parser.add_argument('--job_spread', type=int, required=False, help="Splits up jobs.")
+    parser.add_argument('--sub_job_count', type=int, required=False, help="Splits up jobs.")
+    parser.add_argument('--sub_job_id', type=int, required=False, help="Splits up jobs.")
     parser.add_argument('--job_id', type=int, required=False, help="The job id this process should handle running.")
     parser.add_argument('--jobs_count', type=int, required=False, help="The number of jobs the work is being split into, across machines.")
     args = vars(parser.parse_args())
@@ -24,7 +25,7 @@ def main():
     job_id = args.get('job_id', None)
     jobs_count = args.get('jobs_count', None)
     surface_dir = args.get('surface_code_problems_directory') or f"{pathlib.Path(__file__).parent}/surface_code_circuits"
-    jobs_spread = args.get('job_spread') or 1
+    sub_job_count = args.get('sub_job_count') or 1
     if (job_id is None) != (jobs_count is None):
         raise ValueError("Must specify both or neither of --job_id, --jobs_count")
     if job_id is not None:
@@ -33,7 +34,6 @@ def main():
 
     problems = honeycomb_problems() + surface_code_problems(surface_dir)
     print(f"Total problems (before spread): {len(problems)}", file=sys.stderr)
-    problems *= jobs_spread
     print(f"Total problems (spread): {len(problems)}", file=sys.stderr)
     if job_id is not None:
         problems = problems[job_id::jobs_count]
@@ -47,9 +47,9 @@ def main():
         discard_previous_data=False,
         min_shots=25,
         max_batch=10**6,
-        max_shots=10**8 // jobs_spread,
+        max_shots=10**8 // sub_job_count,
         max_sample_std_dev=1,
-        min_seen_logical_errors=10**3 // jobs_spread,
+        min_seen_logical_errors=10**3 // sub_job_count,
     )
 
 
