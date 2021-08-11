@@ -33,8 +33,8 @@ def plot_thresholds(all_data: ProblemShotData, zoom_in: bool, desired_decoder: s
     fig = plt.figure()
     gs = fig.add_gridspec(2, 4, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
-    # styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
-    styles = ["surface_SD6", "surface_SI500", "honeycomb_SD6", "honeycomb_SI500"]
+    styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
+    # styles = ["surface_SD6", "surface_SI500", "honeycomb_SD6", "honeycomb_SI500"]
     expected_obs_styles = [
         (obs, style)
         for obs in ["H", "V"]
