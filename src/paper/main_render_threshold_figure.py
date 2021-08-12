@@ -9,6 +9,7 @@ from collect_data import read_recorded_data, ProblemShotData
 from plotting import plot_data
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 def main():
     if len(sys.argv) == 1:
@@ -23,13 +24,19 @@ def main():
             csvs.append(p)
 
     all_data = read_recorded_data(*csvs)
-    fig = plot_thresholds(all_data, zoom_in=False)
-    fig.set_size_inches(13, 20)
+
+    fig = plot_thresholds(all_data, focused=True)
+    fig.set_size_inches(13, 10)
     fig.savefig("gen/threshold.pdf", bbox_inches='tight')
+
+    fig2 = plot_thresholds(all_data, focused=False)
+    fig2.set_size_inches(13, 20)
+    fig2.savefig("gen/threshold_all.pdf", bbox_inches='tight')
+
     plt.show()
 
 
-def plot_thresholds(all_data: ProblemShotData, zoom_in: bool) -> plt.Figure:
+def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
     styles = {
         "SD6": [
             ("surface_SD6", "X", "internal"),
@@ -72,10 +79,28 @@ def plot_thresholds(all_data: ProblemShotData, zoom_in: bool) -> plt.Figure:
         #     ("honeycomb_PC3", "V", "internal_correlated"),
         # ],
     }
+    if focused:
+        styles = {
+            "SD6": [
+                ("surface_SD6", "Z", "internal_correlated"),
+                ("honeycomb_SD6", "H", "internal_correlated"),
+            ],
+            "SI500": [
+                ("surface_SI500", "Z", "internal_correlated"),
+                ("honeycomb_SI500", "H", "internal_correlated"),
+            ],
+            "EM3": [
+                None,
+                ("honeycomb_EM3_v2", "H", "internal_correlated"),
+            ],
+        }
+
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.preserved_observable, e.decoder))
 
     fig = plt.figure()
-    gs = fig.add_gridspec(ncols=len(styles), nrows=8, hspace=0.05, wspace=0.05)
+    ncols = len(styles)
+    nrows = len(styles["SD6"])
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     used = set()
     for col, (name, cases) in enumerate(styles.items()):
@@ -94,11 +119,26 @@ def plot_thresholds(all_data: ProblemShotData, zoom_in: bool) -> plt.Figure:
                 fig=fig,
                 legend=False,
                 marker_offset=4 if style_obs_decoder[1] in "XZ" else 0,
-                focus_on_threshold=zoom_in)
+                focus_on_threshold=False)
 
-    axs[0][2].legend(*axs[0][0].get_legend_handles_labels(), loc="upper left", title="Surface Code Sizes")
-    axs[2][2].legend(*axs[7][2].get_legend_handles_labels(), loc="upper left", title="Honeycomb Code Sizes")
-    for k in range(8):
+    a1, b1 = axs[0][0].get_legend_handles_labels()
+    a2, b2 = axs[-1][0].get_legend_handles_labels()
+    axs[0][-1].legend(
+        [
+            mpatches.Patch(color='white', label='Surface Code Sizes:'),
+            *a1,
+            mpatches.Patch(color='white', label='Honeycomb Code Sizes:'),
+            *a2,
+        ],
+        [
+            "Surface Code Sizes:",
+            *b1,
+            "Honeycomb Code Sizes:",
+            *b2,
+        ],
+        loc="upper left",
+    )
+    for k in range(nrows):
         style, obs, decoder = styles["SD6"][k]
         if obs == "H":
             obs = "Horizontal"
@@ -108,10 +148,11 @@ def plot_thresholds(all_data: ProblemShotData, zoom_in: bool) -> plt.Figure:
         if "correlated" in decoder:
             style += " (correlated)"
         axs[k][0].set_ylabel(f"{style}\n{obs} observable\nCode cell error rate")
-    for row in range(8):
-        for col in range(len(styles)):
-            if (row - 1, col) in used:
+    for row in range(nrows):
+        for col in range(ncols):
+            if (row + 1, col) in used:
                 axs[row][col].set_xlabel("")
+            if (row - 1, col) in used:
                 axs[row][col].set_title("")
             if (row, col - 1) in used:
                 axs[row][col].set_ylabel("")

@@ -32,20 +32,26 @@ def main():
 
     all_data = read_recorded_data(*csvs)
 
-    fig1, _ = plot_lambda_line_fits_combo(all_data)
-    fig2, _ = plot_lambda_combo(all_data)
-    fig3, _ = plot_teraquop_combo(all_data)
+    fig0, _ = plot_lambda_line_fits_combo(all_data, focus=False)
+    fig0.set_size_inches(13, 10)
+    fig0.savefig("gen/linefits_all.pdf", bbox_inches='tight')
+
+    fig1, _ = plot_lambda_line_fits_combo(all_data, focus=True)
     fig1.set_size_inches(13, 10)
     fig1.savefig("gen/linefits.pdf", bbox_inches='tight')
+
+    fig2, _ = plot_lambda_combo(all_data)
     fig2.set_size_inches(13, 5)
     fig2.savefig("gen/lambda.pdf", bbox_inches='tight')
+
+    fig3, _ = plot_teraquop_combo(all_data)
     fig3.set_size_inches(13, 5)
     fig3.savefig("gen/teraquop.pdf", bbox_inches='tight')
 
     plt.show()
 
 
-def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
+def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple[plt.Figure, plt.Axes]:
     styles = {
         "SD6": [
             ("honeycomb_SD6", "internal"),
@@ -72,6 +78,22 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, 
         #     None,
         # ],
     }
+    if focus:
+        styles = {
+            "SD6": [
+                ("honeycomb_SD6", "internal_correlated"),
+                ("surface_SD6", "internal_correlated"),
+            ],
+            "SI500": [
+                ("honeycomb_SI500", "internal_correlated"),
+                ("surface_SI500", "internal_correlated"),
+            ],
+            "EM3": [
+                None,
+                ("honeycomb_EM3_v2", "internal_correlated"),
+            ],
+        }
+
     seen_probabilities = {
         k.noise
         for k in all_data.data
@@ -80,7 +102,9 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, 
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
 
     fig = plt.figure()
-    gs = fig.add_gridspec(ncols=len(styles), nrows=4, hspace=0.05, wspace=0.05)
+    ncols = len(styles)
+    nrows = len(styles["SD6"])
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.05, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     used = set()
     for col, (name, cases) in enumerate(styles.items()):
@@ -116,19 +140,20 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, 
             ax.grid()
 
 
-    axs[0][2].legend(*axs[0][0].get_legend_handles_labels(), loc="upper left")
+    axs[0][-1].legend(*axs[0][0].get_legend_handles_labels(), loc="upper left")
 
-    for row in range(4):
-        for col in range(len(styles)):
-            if (row - 1, col) in used:
+    for row in range(nrows):
+        for col in range(ncols):
+            if (row + 1, col) in used:
                 axs[row][col].set_xlabel("")
+            if (row - 1, col) in used:
                 axs[row][col].set_title("")
             if (row, col - 1) in used:
                 axs[row][col].set_ylabel("")
 
     for k in range(len(styles)):
         axs[-1][k].set_xlabel("Code distance")
-    for k in range(4):
+    for k in range(nrows):
         style_decoder = styles["SD6"][k]
         title = style_decoder[0].split("_")[0] + (" (correlated)" if "correlated" in style_decoder[1] else "")
         axs[k][0].set_ylabel(f"{title}\nCode cell error rate")
