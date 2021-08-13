@@ -8,7 +8,8 @@ import stim
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from noise import NoiseModel
-from collect_data import collect_simulated_experiment_data, DecodingProblem, DecodingProblemDesc
+from collect_data import collect_simulated_experiment_data, DecodingProblem, DecodingProblemDesc, \
+    collect_detection_fraction_data
 from honeycomb_layout import HoneycombLayout
 
 
@@ -41,10 +42,17 @@ def main():
     print("", file=sys.stderr)
     print("", file=sys.stderr)
 
+    # collect_detection_fraction_data(
+    #     [p for p in problems if p.desc.decoder == DECODERS[0]],
+    #     out_path=out_path,
+    #     discard_previous_data=True,
+    #     shots=1024,
+    # )
+
     collect_simulated_experiment_data(
         problems,
         out_path=out_path,
-        discard_previous_data=False,
+        discard_previous_data=True,
         min_shots=25,
         max_batch=10**6,
         max_shots=10**8 // sub_job_count,
@@ -108,7 +116,7 @@ def surface_code_problems(directory: Optional[str]) -> List[DecodingProblem]:
             obs=obs,
             decoder=decoder,
         )
-        for decoder in ["internal", "internal_correlated"]
+        for decoder in DECODERS
         for d in [3, 7, 11, 15, 19]
         for p in USED_NOISE_VALUES
         for noise_name in ["SD6", "SI500"]
@@ -131,6 +139,10 @@ USED_NOISE_VALUES = [
     0.0150,
     0.0200,
     0.0300,
+]
+DECODERS = [
+    "internal",
+    "internal_correlated",
 ]
 
 def honeycomb_problems() -> List[DecodingProblem]:
@@ -164,10 +176,7 @@ def honeycomb_problems() -> List[DecodingProblem]:
     ]
     return [
         lay.as_decoder_problem(decoder)
-        for decoder in [
-            "internal",
-            "internal_correlated",
-        ]
+        for decoder in DECODERS
         for lay in layouts
     ]
 

@@ -28,10 +28,12 @@ def main():
     fig = plot_thresholds(all_data, focused=True)
     fig.set_size_inches(13, 10)
     fig.savefig("gen/threshold.pdf", bbox_inches='tight')
+    fig.savefig("gen/threshold.png", bbox_inches='tight')
 
     fig2 = plot_thresholds(all_data, focused=False)
     fig2.set_size_inches(13, 20)
     fig2.savefig("gen/threshold_all.pdf", bbox_inches='tight')
+    fig2.savefig("gen/threshold_all.png", bbox_inches='tight')
 
     plt.show()
 

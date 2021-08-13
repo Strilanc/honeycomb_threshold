@@ -10,13 +10,13 @@ import matplotlib.colors as mcolors
 from scipy.stats import linregress
 from scipy.stats._stats_mstats_common import LinregressResult
 
+import matplotlib.pyplot as plt
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from collect_data import read_recorded_data, ProblemShotData, ShotData, DecodingProblemDesc
-
 from plotting import total_error_to_per_piece_error
 
-import matplotlib.pyplot as plt
 
 def main():
     if len(sys.argv) == 1:
@@ -35,18 +35,22 @@ def main():
     fig0, _ = plot_lambda_line_fits_combo(all_data, focus=False)
     fig0.set_size_inches(13, 10)
     fig0.savefig("gen/linefits_all.pdf", bbox_inches='tight')
+    fig0.savefig("gen/linefits_all.png", bbox_inches='tight')
 
     fig1, _ = plot_lambda_line_fits_combo(all_data, focus=True)
     fig1.set_size_inches(13, 10)
     fig1.savefig("gen/linefits.pdf", bbox_inches='tight')
+    fig1.savefig("gen/linefits.png", bbox_inches='tight')
 
     fig2, _ = plot_lambda_combo(all_data)
     fig2.set_size_inches(13, 5)
     fig2.savefig("gen/lambda.pdf", bbox_inches='tight')
+    fig2.savefig("gen/lambda.png", bbox_inches='tight')
 
     fig3, _ = plot_teraquop_combo(all_data)
     fig3.set_size_inches(13, 5)
     fig3.savefig("gen/teraquop.pdf", bbox_inches='tight')
+    fig3.savefig("gen/teraquop.png", bbox_inches='tight')
 
     plt.show()
 
@@ -140,7 +144,8 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
             ax.grid()
 
 
-    axs[0][-1].legend(*axs[0][0].get_legend_handles_labels(), loc="upper left")
+    a, b = axs[0][0].get_legend_handles_labels()
+    axs[0][-1].legend(a[::-1], b[::-1], loc="upper left")
 
     for row in range(nrows):
         for col in range(ncols):

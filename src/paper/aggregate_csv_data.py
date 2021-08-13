@@ -19,6 +19,7 @@ def main():
             csvs.append(p)
 
     all_data = read_recorded_data(*csvs)
+    all_data.data = {k: v for k, v in sorted(all_data.data.items())}
 
     print(CSV_HEADER)
     for desc, shot_data in all_data.data.items():
