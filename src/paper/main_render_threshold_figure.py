@@ -28,12 +28,12 @@ def main():
     fig = plot_thresholds(all_data, focused=True)
     fig.set_size_inches(13, 10)
     fig.savefig("gen/threshold.pdf", bbox_inches='tight')
-    fig.savefig("gen/threshold.png", bbox_inches='tight')
+    fig.savefig("gen/threshold.png", bbox_inches='tight', dpi=200)
 
     fig2 = plot_thresholds(all_data, focused=False)
     fig2.set_size_inches(13, 20)
     fig2.savefig("gen/threshold_all.pdf", bbox_inches='tight')
-    fig2.savefig("gen/threshold_all.png", bbox_inches='tight')
+    fig2.savefig("gen/threshold_all.png", bbox_inches='tight', dpi=200)
 
     plt.show()
 
@@ -102,7 +102,7 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
     fig = plt.figure()
     ncols = len(styles)
     nrows = len(styles["SD6"])
-    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.075, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     used = set()
     for col, (name, cases) in enumerate(styles.items()):

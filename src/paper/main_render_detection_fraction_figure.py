@@ -26,7 +26,7 @@ def main():
     fig = plot_detection_fraction(all_data)
     fig.set_size_inches(15, 5)
     fig.savefig("gen/detectionfraction.pdf", bbox_inches='tight')
-    fig.savefig("gen/detectionfraction.png", bbox_inches='tight')
+    fig.savefig("gen/detectionfraction.png", bbox_inches='tight', dpi=200)
 
 
     plt.show()
@@ -48,7 +48,7 @@ def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
     fig = plt.figure()
     ncols = len(styles)
     nrows = 1
-    gs = fig.add_gridspec(ncols=ncols + 1, nrows=nrows, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=ncols + 1, nrows=nrows, hspace=0.05, wspace=0.1)
     axs = gs.subplots(sharex=True, sharey=True)
     markers = "ov*sp^<>8P+xXDd|"
     colors = list(mcolors.TABLEAU_COLORS) * 3

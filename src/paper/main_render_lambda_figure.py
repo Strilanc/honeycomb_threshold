@@ -35,22 +35,22 @@ def main():
     fig0, _ = plot_lambda_line_fits_combo(all_data, focus=False)
     fig0.set_size_inches(13, 10)
     fig0.savefig("gen/linefits_all.pdf", bbox_inches='tight')
-    fig0.savefig("gen/linefits_all.png", bbox_inches='tight')
+    fig0.savefig("gen/linefits_all.png", bbox_inches='tight', dpi=200)
 
     fig1, _ = plot_lambda_line_fits_combo(all_data, focus=True)
     fig1.set_size_inches(13, 10)
     fig1.savefig("gen/linefits.pdf", bbox_inches='tight')
-    fig1.savefig("gen/linefits.png", bbox_inches='tight')
+    fig1.savefig("gen/linefits.png", bbox_inches='tight', dpi=200)
 
     fig2, _ = plot_lambda_combo(all_data)
     fig2.set_size_inches(13, 5)
     fig2.savefig("gen/lambda.pdf", bbox_inches='tight')
-    fig2.savefig("gen/lambda.png", bbox_inches='tight')
+    fig2.savefig("gen/lambda.png", bbox_inches='tight', dpi=200)
 
     fig3, _ = plot_teraquop_combo(all_data)
     fig3.set_size_inches(13, 5)
     fig3.savefig("gen/teraquop.pdf", bbox_inches='tight')
-    fig3.savefig("gen/teraquop.png", bbox_inches='tight')
+    fig3.savefig("gen/teraquop.png", bbox_inches='tight', dpi=200)
 
     plt.show()
 
@@ -108,7 +108,7 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
     fig = plt.figure()
     ncols = len(styles)
     nrows = len(styles["SD6"])
-    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.075, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     used = set()
     for col, (name, cases) in enumerate(styles.items()):
