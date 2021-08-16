@@ -38,22 +38,22 @@ def main():
     fig0, _ = plot_lambda_line_fits_combo(all_data, focus=False)
     fig0.set_size_inches(13, 10)
     fig0.savefig("gen/linefits_all.pdf", bbox_inches='tight')
-    fig0.savefig("gen/linefits_all.png", bbox_inches='tight')
+    fig0.savefig("gen/linefits_all.png", bbox_inches='tight', dpi=200)
 
     fig1, _ = plot_lambda_line_fits_combo(all_data, focus=True)
     fig1.set_size_inches(13, 10)
     fig1.savefig("gen/linefits.pdf", bbox_inches='tight')
-    fig1.savefig("gen/linefits.png", bbox_inches='tight')
+    fig1.savefig("gen/linefits.png", bbox_inches='tight', dpi=200)
 
     fig2, _ = plot_lambda_combo(all_data)
     fig2.set_size_inches(13, 5)
     fig2.savefig("gen/lambda.pdf", bbox_inches='tight')
-    fig2.savefig("gen/lambda.png", bbox_inches='tight')
+    fig2.savefig("gen/lambda.png", bbox_inches='tight', dpi=200)
 
     fig3, _ = plot_teraquop_combo(all_data)
     fig3.set_size_inches(13, 5)
     fig3.savefig("gen/teraquop.pdf", bbox_inches='tight')
-    fig3.savefig("gen/teraquop.png", bbox_inches='tight')
+    fig3.savefig("gen/teraquop.png", bbox_inches='tight', dpi=200)
 
     plt.show()
 
@@ -111,7 +111,7 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
     fig = plt.figure()
     ncols = len(styles)
     nrows = len(styles["SD6"])
-    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.075, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     used = set()
     for col, (name, cases) in enumerate(styles.items()):
@@ -140,15 +140,14 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
                     ax.plot(xs2, ys2, '--', color=colors[order])
                     lambda_xs.append(noise)
                     lambda_ys.append(1 / math.exp(r.slope))
-                ax.scatter(xs, ys, color=colors[order], marker=markers[order], label=f"{noise=}")
+                ax.scatter(xs, ys, color=colors[order], marker=markers[order], label=f"{noise}")
             ax.semilogy()
             ax.set_xlim(0, 30)
             ax.set_ylim(1e-12, 1e0)
             ax.grid()
 
-
     a, b = axs[0][0].get_legend_handles_labels()
-    axs[0][-1].legend(a[::-1], b[::-1], loc="upper left")
+    axs[0][-1].legend(a[::-1], b[::-1], loc="upper center", title="Physical Error Rates")
 
     for row in range(nrows):
         for col in range(ncols):
@@ -160,11 +159,16 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
                 axs[row][col].set_ylabel("")
 
     for k in range(len(styles)):
-        axs[-1][k].set_xlabel("Code distance")
+        axs[-1][k].set_xlabel("Code Distance")
     for k in range(nrows):
         style_decoder = styles["SD6"][k]
-        title = style_decoder[0].split("_")[0] + (" (correlated)" if "correlated" in style_decoder[1] else "")
-        axs[k][0].set_ylabel(f"{title}\nCode cell error rate")
+        title = style_decoder[0].split("_")[0]
+        title = title.capitalize()
+        title += " (Correlated)" if "correlated" in style_decoder[1] else " (Standard)"
+        axs[k][0].set_ylabel(f"{title}\nCode Cell Error Rate")
+    for ax_row in axs:
+        for ax in ax_row:
+            ax.yaxis.set_ticks_position('both')
     return fig, axs
 
 
@@ -226,27 +230,31 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
                 label = label[:-3]
             if label.endswith("_" + name):
                 label = label[:-len(name) - 1]
+            label = label.capitalize()
             if "correlated" in rep.decoder:
-                label += " (correlated)"
-            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100-i)
+                label += " (Correlated)"
+            else:
+                label += " (Standard)"
+            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100 - i)
             ax.fill_between(lambda_xs, lambda_ys_low, lambda_ys_high, alpha=0.3)
-
-        have_any_poor |= bool(poor_ys)
         if have_any_poor:
-            ax.scatter(poor_xs, poor_ys, label="<3 data points for fit", s=200, color="red", zorder=100, alpha=0.3)
+            ax.scatter(poor_xs, poor_ys, s=200, color="red", zorder=100, alpha=0.3)
 
-        ax.set_xlabel("Noise")
-        ax.set_ylabel("(λ) Error suppression per double code distance")
+        ax.set_xlabel("Physical Error Rate")
+        ax.set_ylabel("Lambda Factor")
         ax.set_xlim(1e-4, 2e-2)
         ax.set_ylim(1, 100)
         ax.loglog()
-        ax.grid()
+        ax.grid(which='minor')
+        ax.grid(which='major', color='black')
 
         ax.set_title(name)
     a, b = axs[-2].get_legend_handles_labels()
     axs[-2].legend(a, b, loc="upper right")
     for ax in fig.get_axes():
         ax.label_outer()
+    for ax in axs:
+        ax.yaxis.set_ticks_position('both')
     return fig, axs
 
 
@@ -309,25 +317,30 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
                 label = label[:-3]
             if label.endswith("_" + name):
                 label = label[:-len(name) - 1]
+            label = label.capitalize()
             if "correlated" in rep.decoder:
-                label += " (correlated)"
+                label += " (Correlated)"
+            else:
+                label += " (Standard)"
             ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100-case_i)
             ax.fill_between(lambda_xs, lambda_ys_low, lambda_ys_high, alpha=0.3)
 
         have_any_poor |= bool(poor_ys)
         if have_any_poor:
-            ax.scatter(poor_xs, poor_ys, label="<3 data points for fit", s=200, color="red", zorder=100, alpha=0.3)
+            ax.scatter(poor_xs, poor_ys, s=200, color="red", zorder=100, alpha=0.3)
 
-        ax.set_xlabel("Noise")
-        ax.set_ylabel("Physical qubits per logical qubit for teraquop regime")
+        ax.set_xlabel("Physical Error Rate")
+        ax.set_ylabel("Teraquop Qubit Count")
         ax.set_xlim(1e-4, 2e-2)
         ax.set_ylim(1e2, 1e5)
         ax.loglog()
-        ax.grid()
+        ax.grid(which='minor')
+        ax.grid(which='major', color='black')
 
         ax.set_title(name)
-    a, b = axs[-2].get_legend_handles_labels()
-    axs[-2].legend(a, b, loc="lower right")
+    axs[1].legend(loc="lower right")
+    for ax in axs:
+        ax.yaxis.set_ticks_position('both')
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
@@ -404,7 +417,7 @@ class LambdaGroup:
         if len(xs) <= 1:
             slopes = [0, 0, 0]
         else:
-            slopes = least_squares_slope_range(xs=xs, ys=ys)
+            slopes = least_squares_slope_range(xs=xs, ys=ys, cost_increase=1)
         return tuple(slope_to_lambda(s) for s in slopes)
 
     def projected_qubit_count_range(self, target_probability: float, style: str) -> Tuple[float, float]:
@@ -413,7 +426,7 @@ class LambdaGroup:
         ys = np.array([math.log(y) for y in ys])
         if len(xs) <= 1:
             return (self.projected_required_qubit_count(target_probability, style),) * 2
-        d1, d2 = least_squares_output_range(xs=ys, ys=xs, target_x=math.log(target_probability))
+        d1, d2 = least_squares_output_range(xs=ys, ys=xs, target_x=math.log(target_probability), cost_increase=1)
         return self._d_to_q(int(math.ceil(d1)), style), self._d_to_q(int(math.ceil(d2)), style)
 
     def projected_error(self, distance: float) -> float:

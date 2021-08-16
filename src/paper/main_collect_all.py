@@ -43,6 +43,8 @@ def collect_data(*,
         print(f"Running problem #: {problem_id}", file=sys.stderr)
         problems = [problems[problem_id]]
 
+    # Hello jank my old fried, fancy seeing you here again.
+    # Uncomment this, comment the next line, and add "EM3" to decoders to produce detection fraction data.
     # collect_detection_fraction_data(
     #     [p for p in problems if p.desc.decoder == DECODERS[0]],
     #     out_path=out_path,

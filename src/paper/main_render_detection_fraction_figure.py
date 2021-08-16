@@ -26,7 +26,7 @@ def main():
     fig = plot_detection_fraction(all_data)
     fig.set_size_inches(15, 5)
     fig.savefig("gen/detectionfraction.pdf", bbox_inches='tight')
-    fig.savefig("gen/detectionfraction.png", bbox_inches='tight')
+    fig.savefig("gen/detectionfraction.png", bbox_inches='tight', dpi=200)
 
 
     plt.show()
@@ -34,12 +34,12 @@ def main():
 
 def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
     styles = {
-        "surface_SD6": "SD6\n(surface code)",
-        "surface_SI500": "SI500\n(surface code)",
-        "honeycomb_SD6": "SD6\n(honeycomb code)",
-        "honeycomb_SI500": "SI500\n(honeycomb code)",
-        "honeycomb_EM3_v2": "EM3\n(honeycomb code)",
-        "honeycomb_EM3": "Tweaked EM3\n(honeycomb code)",
+        "surface_SD6": "SD6\nSurface Code",
+        "surface_SI500": "SI500\nSurface Code",
+        "honeycomb_SD6": "SD6\nHoneycomb Code",
+        "honeycomb_SI500": "SI500\nHoneycomb Code",
+        "honeycomb_EM3_v2": "EM3\nHoneycomb Code",
+        "honeycomb_EM3": "Tweaked EM3\nHoneycomb Code",
     }
 
     p2i = {p: i for i, p in enumerate(sorted(set(e.noise for e in all_data.data.keys())))}
@@ -48,7 +48,7 @@ def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
     fig = plt.figure()
     ncols = len(styles)
     nrows = 1
-    gs = fig.add_gridspec(ncols=ncols + 1, nrows=nrows, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=ncols + 1, nrows=nrows, hspace=0.05, wspace=0.1)
     axs = gs.subplots(sharex=True, sharey=True)
     markers = "ov*sp^<>8P+xXDd|"
     colors = list(mcolors.TABLEAU_COLORS) * 3
@@ -72,7 +72,7 @@ def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
     axs[0].set_yticklabels(["0%", "10%", "20%", "30%", "40%", "50%"])
     axs[-1].axis('off')
     a, b = axs[-2].get_legend_handles_labels()
-    axs[-1].legend(a[::-1], b[::-1], loc='upper left', title="Noise rate")
+    axs[-1].legend(a[::-1], b[::-1], loc='upper left', title="Physical Error Rate")
     axs[0].set_ylabel("Detection Fraction")
     for ax in axs:
         ax.set_xlabel("Code Distance")

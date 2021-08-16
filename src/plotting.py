@@ -90,7 +90,7 @@ def plot_data(data: ProblemShotData,
     ticks_x = [0.5] * (x_max >= 0.5) + [k*10**-p for k in [1] for p in range(1, 10) if x_min <= k*10**-p <= x_max]
     ticks_y = [0.5] * (y_max >= 0.5) + [k*10**-p for k in [1] for p in range(1, 10) if y_min <= k*10**-p <= y_max]
     ax.set_ylabel("Per-round Logical Error Rate")
-    ax.set_xlabel("Noise (p)")
+    ax.set_xlabel("Physical Error Rate")
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
     ax.set_title(title)

@@ -29,12 +29,12 @@ def main():
     fig = plot_thresholds(all_data, focused=True)
     fig.set_size_inches(13, 10)
     fig.savefig("gen/threshold.pdf", bbox_inches='tight')
-    fig.savefig("gen/threshold.png", bbox_inches='tight')
+    fig.savefig("gen/threshold.png", bbox_inches='tight', dpi=200)
 
     fig2 = plot_thresholds(all_data, focused=False)
     fig2.set_size_inches(13, 20)
     fig2.savefig("gen/threshold_all.pdf", bbox_inches='tight')
-    fig2.savefig("gen/threshold_all.png", bbox_inches='tight')
+    fig2.savefig("gen/threshold_all.png", bbox_inches='tight', dpi=200)
 
     plt.show()
 
@@ -103,7 +103,7 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
     fig = plt.figure()
     ncols = len(styles)
     nrows = len(styles["SD6"])
-    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.05, wspace=0.05)
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.075, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
     used = set()
     for col, (name, cases) in enumerate(styles.items()):
@@ -148,9 +148,12 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
         if obs == "V":
             obs = "Vertical"
         style = style.split("_")[0]
+        style = style.capitalize()
         if "correlated" in decoder:
-            style += " (correlated)"
-        axs[k][0].set_ylabel(f"{style}\n{obs} observable\nCode cell error rate")
+            style += " (Correlated)"
+        else:
+            style += " (Standard)"
+        axs[k][0].set_ylabel(f"{style}\n{obs} Observable\nCode Cell Error Rate")
     for row in range(nrows):
         for col in range(ncols):
             if (row + 1, col) in used:
@@ -159,7 +162,9 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
                 axs[row][col].set_title("")
             if (row, col - 1) in used:
                 axs[row][col].set_ylabel("")
-
+    for ax_row in axs:
+        for ax in ax_row:
+            ax.yaxis.set_ticks_position('both')
     return fig
 
 
