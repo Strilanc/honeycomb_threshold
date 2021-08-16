@@ -34,12 +34,12 @@ def main():
 
 def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
     styles = {
-        "surface_SD6": "SD6\n(surface code)",
-        "surface_SI500": "SI500\n(surface code)",
-        "honeycomb_SD6": "SD6\n(honeycomb code)",
-        "honeycomb_SI500": "SI500\n(honeycomb code)",
-        "honeycomb_EM3_v2": "EM3\n(honeycomb code)",
-        "honeycomb_EM3": "Tweaked EM3\n(honeycomb code)",
+        "surface_SD6": "SD6\nSurface Code",
+        "surface_SI500": "SI500\nSurface Code",
+        "honeycomb_SD6": "SD6\nHoneycomb Code",
+        "honeycomb_SI500": "SI500\nHoneycomb Code",
+        "honeycomb_EM3_v2": "EM3\nHoneycomb Code",
+        "honeycomb_EM3": "Tweaked EM3\nHoneycomb Code",
     }
 
     p2i = {p: i for i, p in enumerate(sorted(set(e.noise for e in all_data.data.keys())))}
@@ -67,12 +67,12 @@ def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
         ax.set_ylim(0, 0.5)
         ax.set_xlim(0, 20)
         ax.set_xticks([0, 5, 10, 15, 20])
-        ax.set_xticklabels(["0", "5", "10", "15", "20"], rotation=90)
+        ax.set_xticklabels(["", "5", "10", "15", "20"], rotation=90)
     axs[0].set_yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
     axs[0].set_yticklabels(["0%", "10%", "20%", "30%", "40%", "50%"])
     axs[-1].axis('off')
     a, b = axs[-2].get_legend_handles_labels()
-    axs[-1].legend(a[::-1], b[::-1], loc='upper left', title="Noise rate")
+    axs[-1].legend(a[::-1], b[::-1], loc='upper left', title="Physical Error Rate")
     axs[0].set_ylabel("Detection Fraction")
     for ax in axs:
         ax.set_xlabel("Code Distance")
