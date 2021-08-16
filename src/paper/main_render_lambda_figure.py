@@ -137,15 +137,14 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
                     ax.plot(xs2, ys2, '--', color=colors[order])
                     lambda_xs.append(noise)
                     lambda_ys.append(1 / math.exp(r.slope))
-                ax.scatter(xs, ys, color=colors[order], marker=markers[order], label=f"{noise=}")
+                ax.scatter(xs, ys, color=colors[order], marker=markers[order], label=f"{noise}")
             ax.semilogy()
             ax.set_xlim(0, 30)
             ax.set_ylim(1e-12, 1e0)
             ax.grid()
 
-
     a, b = axs[0][0].get_legend_handles_labels()
-    axs[0][-1].legend(a[::-1], b[::-1], loc="upper left")
+    axs[0][-1].legend(a[::-1], b[::-1], loc="upper center", title="Physical Error Rates")
 
     for row in range(nrows):
         for col in range(ncols):
@@ -157,11 +156,16 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
                 axs[row][col].set_ylabel("")
 
     for k in range(len(styles)):
-        axs[-1][k].set_xlabel("Code distance")
+        axs[-1][k].set_xlabel("Code Distance")
     for k in range(nrows):
         style_decoder = styles["SD6"][k]
-        title = style_decoder[0].split("_")[0] + (" (correlated)" if "correlated" in style_decoder[1] else "")
-        axs[k][0].set_ylabel(f"{title}\nCode cell error rate")
+        title = style_decoder[0].split("_")[0]
+        title = title.capitalize()
+        title += " (Correlated)" if "correlated" in style_decoder[1] else " (Standard)"
+        axs[k][0].set_ylabel(f"{title}\nCode Cell Error Rate")
+    for ax_row in axs:
+        for ax in ax_row:
+            ax.yaxis.set_ticks_position('both')
     return fig, axs
 
 
@@ -223,25 +227,31 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
                 label = label[:-3]
             if label.endswith("_" + name):
                 label = label[:-len(name) - 1]
+            label = label.capitalize()
             if "correlated" in rep.decoder:
-                label += " (correlated)"
+                label += " (Correlated)"
+            else:
+                label += " (Standard)"
             ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label)
 
         have_any_poor |= bool(poor_ys)
         if have_any_poor:
-            ax.scatter(poor_xs, poor_ys, label="<3 data points for fit", s=200, color="red", zorder=100, alpha=0.3)
+            ax.scatter(poor_xs, poor_ys, s=200, color="red", zorder=100, alpha=0.3)
 
-        ax.set_xlabel("Noise")
-        ax.set_ylabel("(λ) Error suppression per double code distance")
+        ax.set_xlabel("Physical Error Rate")
+        ax.set_ylabel("Lambda Factor")
         ax.set_xlim(1e-4, 2e-2)
         ax.set_ylim(1, 100)
         ax.loglog()
-        ax.grid()
+        ax.grid(which='minor')
+        ax.grid(which='major', color='black')
 
         ax.set_title(name)
     axs[1].legend(loc="upper right")
     for ax in fig.get_axes():
         ax.label_outer()
+    for ax in axs:
+        ax.yaxis.set_ticks_position('both')
     return fig, axs
 
 
@@ -303,23 +313,29 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
                 label = label[:-3]
             if label.endswith("_" + name):
                 label = label[:-len(name) - 1]
+            label = label.capitalize()
             if "correlated" in rep.decoder:
-                label += " (correlated)"
+                label += " (Correlated)"
+            else:
+                label += " (Standard)"
             ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label)
 
         have_any_poor |= bool(poor_ys)
         if have_any_poor:
-            ax.scatter(poor_xs, poor_ys, label="<3 data points for fit", s=200, color="red", zorder=100, alpha=0.3)
+            ax.scatter(poor_xs, poor_ys, s=200, color="red", zorder=100, alpha=0.3)
 
-        ax.set_xlabel("Noise")
-        ax.set_ylabel("Physical qubits per logical qubit for teraquop regime")
+        ax.set_xlabel("Physical Error Rate")
+        ax.set_ylabel("Teraquop Qubit Count")
         ax.set_xlim(1e-4, 2e-2)
         ax.set_ylim(1e2, 1e5)
         ax.loglog()
-        ax.grid()
+        ax.grid(which='minor')
+        ax.grid(which='major', color='black')
 
         ax.set_title(name)
     axs[1].legend(loc="lower right")
+    for ax in axs:
+        ax.yaxis.set_ticks_position('both')
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
