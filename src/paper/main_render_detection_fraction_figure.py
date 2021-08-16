@@ -67,7 +67,7 @@ def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
         ax.set_ylim(0, 0.5)
         ax.set_xlim(0, 20)
         ax.set_xticks([0, 5, 10, 15, 20])
-        ax.set_xticklabels(["", "5", "10", "15", "20"], rotation=90)
+        ax.set_xticklabels(["0", "5", "10", "15", "20"], rotation=90)
     axs[0].set_yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
     axs[0].set_yticklabels(["0%", "10%", "20%", "30%", "40%", "50%"])
     axs[-1].axis('off')
