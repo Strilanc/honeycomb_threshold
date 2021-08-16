@@ -147,9 +147,12 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
         if obs == "V":
             obs = "Vertical"
         style = style.split("_")[0]
+        style = style.capitalize()
         if "correlated" in decoder:
-            style += " (correlated)"
-        axs[k][0].set_ylabel(f"{style}\n{obs} observable\nCode cell error rate")
+            style += " (Correlated)"
+        else:
+            style += " (Standard)"
+        axs[k][0].set_ylabel(f"{style}\n{obs} Observable\nCode Cell Error Rate")
     for row in range(nrows):
         for col in range(ncols):
             if (row + 1, col) in used:
