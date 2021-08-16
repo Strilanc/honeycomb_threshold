@@ -11,6 +11,7 @@ from plotting import plot_data
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+
 def main():
     if len(sys.argv) == 1:
         raise ValueError("Specify csv files to include as command line arguments.")

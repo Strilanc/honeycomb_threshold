@@ -4,7 +4,8 @@ from typing import Union
 import numpy as np
 import pytest
 
-from probability_util import binary_search, log_binomial, log_factorial
+from probability_util import binary_search, log_binomial, log_factorial, least_squares_output_range, least_squares_slope_range, \
+    binary_intercept, least_squares_through_point
 
 
 @pytest.mark.parametrize(
@@ -63,3 +64,52 @@ def test_binary_search():
     assert binary_search(func=lambda x: x**2, min_x=0, max_x=10**100, target=92) == 10
     assert binary_search(func=lambda x: x**2, min_x=0, max_x=10**100, target=-100) == 0
     assert binary_search(func=lambda x: x**2, min_x=0, max_x=10**100, target=10**300) == 10**100
+
+
+def test_least_squares_through_point():
+    fit = least_squares_through_point(
+        xs=np.array([1, 2, 3]),
+        ys=np.array([2, 3, 4]),
+        required_x=1,
+        required_y=2)
+    np.testing.assert_allclose(fit.slope, 1)
+    np.testing.assert_allclose(fit.intercept, 1)
+
+    fit = least_squares_through_point(
+        xs=np.array([1, 2, 3]),
+        ys=np.array([2, 3, 4]),
+        required_x=1,
+        required_y=1)
+    np.testing.assert_allclose(fit.slope, 1.6, rtol=1e-5)
+    np.testing.assert_allclose(fit.intercept, -0.6, atol=1e-5)
+
+
+def test_binary_intercept():
+    t = binary_intercept(func=lambda x: x**2, start_x=5, step=1, target_y=82.3, atol=0.01)
+    assert t > 0 and abs(t**2 - 82.3) <= 0.01
+    t = binary_intercept(func=lambda x: -x**2, start_x=5, step=1, target_y=-82.3, atol=0.01)
+    assert t > 0 and abs(t**2 - 82.3) <= 0.01
+    t = binary_intercept(func=lambda x: x**2, start_x=0, step=-1, target_y=82.3, atol=0.01)
+    assert t < 0 and abs(t**2 - 82.3) <= 0.01
+    t = binary_intercept(func=lambda x: -x**2, start_x=0, step=-1, target_y=-82.3, atol=0.2)
+    assert t < 0 and abs(t**2 - 82.3) <= 0.2
+
+
+def least_squares_output_range():
+    low, high = least_squares_output_range(
+        xs=[1, 2, 3],
+        ys=[1, 5, 9],
+        target_x=100,
+        cost_increase=1,
+    )
+    assert 300 < low < 400 < high < 500
+
+
+def test_least_squares_slope_range():
+    low, mid, high = least_squares_slope_range(
+        xs=[1, 2, 3],
+        ys=[1, 5, 9],
+        cost_increase=1,
+    )
+    np.testing.assert_allclose(mid, 4)
+    assert 3 < low < 3.5 < mid < 4.5 < high < 5

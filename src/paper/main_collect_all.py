@@ -17,30 +17,31 @@ def main():
     parser = argparse.ArgumentParser(description="Sample honeycomb error rates.")
     parser.add_argument('--surface_code_problems_directory', type=str, required=False, help="A directory of surface code problems to also do.")
     parser.add_argument('--out_file', type=str, required=False, help="Write to a file in addition to stdout.")
-    parser.add_argument('--sub_job_count', type=int, required=False, help="Splits up jobs.")
-    parser.add_argument('--sub_job_id', type=int, required=False, help="Splits up jobs.")
-    parser.add_argument('--job_id', type=int, required=False, help="The job id this process should handle running.")
-    parser.add_argument('--jobs_count', type=int, required=False, help="The number of jobs the work is being split into, across machines.")
+    parser.add_argument('--problem_id', type=int, required=False)
+    parser.add_argument('--case_reduction', type=int, required=False)
     args = vars(parser.parse_args())
     out_path = args.get('out_file', None)
-    job_id = args.get('job_id', None)
-    jobs_count = args.get('jobs_count', None)
-    surface_dir = args.get('surface_code_problems_directory') or f"{pathlib.Path(__file__).parent}/surface_code_circuits"
-    sub_job_count = args.get('sub_job_count') or 1
-    if (job_id is None) != (jobs_count is None):
-        raise ValueError("Must specify both or neither of --job_id, --jobs_count")
-    if job_id is not None:
-        if not (0 < jobs_count and 0 <= job_id < jobs_count):
-            raise ValueError("Need 0 < jobs_count and 0 <= job_id < jobs_count")
+    problem_id = args.get('problem_id', None)
+    surface_dir = args.get('surface_code_problems_directory')
+    case_reduction = args.get('case_reduction') or 1
+    collect_data(surface_dir=surface_dir,
+                 problem_id=problem_id,
+                 case_reduction=case_reduction,
+                 out_path=out_path)
 
+
+def collect_data(*,
+                 surface_dir: Optional[str],
+                 problem_id: Optional[int],
+                 case_reduction: int,
+                 out_path: Optional[str]):
+    if surface_dir is None:
+        surface_dir = f"{pathlib.Path(__file__).parent}/surface_code_circuits"
     problems = honeycomb_problems() + surface_code_problems(surface_dir)
-    print(f"Total problems (before spread): {len(problems)}", file=sys.stderr)
-    print(f"Total problems (spread): {len(problems)}", file=sys.stderr)
-    if job_id is not None:
-        problems = problems[job_id::jobs_count]
-    print(f"Problems being run: {len(problems)}", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("", file=sys.stderr)
+    print(f"Problems: {len(problems)}", file=sys.stderr)
+    if problem_id is not None:
+        print(f"Running problem #: {problem_id}", file=sys.stderr)
+        problems = [problems[problem_id]]
 
     # collect_detection_fraction_data(
     #     [p for p in problems if p.desc.decoder == DECODERS[0]],
@@ -54,10 +55,10 @@ def main():
         out_path=out_path,
         discard_previous_data=True,
         min_shots=25,
-        max_batch=10**6,
-        max_shots=10**8 // sub_job_count,
+        max_batch=2**15,
+        max_shots=10**8 // case_reduction,
         max_sample_std_dev=1,
-        min_seen_logical_errors=10**3 // sub_job_count,
+        min_seen_logical_errors=10**3 // case_reduction,
     )
 
 
@@ -167,7 +168,6 @@ def honeycomb_problems() -> List[DecodingProblem]:
             "SI500",
             "SD6",
             "EM3_v2",
-            "PC3",
         ]
         for obs in [
             "V",

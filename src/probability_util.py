@@ -1,7 +1,10 @@
 import math
-from typing import Union, Callable
+from typing import Union, Callable, Sequence, Tuple
 
 import numpy as np
+from scipy.stats import linregress
+from scipy.optimize import leastsq
+from scipy.stats._stats_mstats_common import LinregressResult
 
 
 def log_binomial(*, p: Union[float, np.ndarray], n: int, hits: int) -> Union[float, np.ndarray]:
@@ -74,3 +77,93 @@ def binary_search(*, func: Callable[[int], float], min_x: int, max_x: int, targe
     dmax = 0 if fmax == target else fmax - target
     dmin = 0 if fmin == target else fmin - target
     return max_x if abs(dmax) < abs(dmin) else min_x
+
+
+def binary_intercept(*, func: Callable[[float], float], start_x: float, step: float, target_y: float, atol: float) -> int:
+    """Performs an approximate granular binary search over a monotonically ascending function."""
+    start_y = func(start_x)
+    if abs(start_y - target_y) <= atol:
+        return start_x
+    while (func(start_x + step) >= target_y) == (start_y >= target_y):
+        step *= 2
+        if np.isinf(step) or step == 0:
+            raise ValueError("Failed.")
+    xs = [start_x, start_x + step]
+    min_x = min(xs)
+    max_x = max(xs)
+    increasing = func(min_x) < func(max_x)
+
+    while True:
+        med_x = (min_x + max_x) / 2
+        med_y = func(med_x)
+        if abs(med_y - target_y) <= atol:
+            return med_x
+        assert med_x not in [min_x, max_x]
+        if (med_y < target_y) == increasing:
+            min_x = med_x
+        else:
+            max_x = med_x
+
+
+def least_squares_cost(*, xs: np.ndarray, ys: np.ndarray, intercept: float, slope: float) -> float:
+    assert len(xs.shape) == 1
+    assert xs.shape == ys.shape
+    return np.sum((intercept + slope*xs - ys)**2)
+
+
+def least_squares_through_point(*, xs: np.ndarray, ys: np.ndarray, required_x: float, required_y: float) -> LinregressResult:
+    xs2 = xs - required_x
+    ys2 = ys - required_y
+
+    def err(slope: float) -> float:
+        return least_squares_cost(xs=xs2, ys=ys2, intercept=0, slope=slope)
+
+    (best_slope,), _ = leastsq(func=err, x0=0.0)
+    intercept = required_y - required_x * best_slope
+    return LinregressResult(best_slope, intercept, None, None, None, intercept_stderr=False)
+
+
+def least_squares_with_slope(*, xs: np.ndarray, ys: np.ndarray, required_slope: float) -> LinregressResult:
+    def err(intercept: float) -> float:
+        return least_squares_cost(xs=xs, ys=ys, intercept=intercept, slope=required_slope)
+
+    (best_intercept,), _ = leastsq(func=err, x0=0.0)
+    return LinregressResult(required_slope, best_intercept, None, None, None, intercept_stderr=False)
+
+
+def least_squares_output_range(*,
+                               xs: Sequence[float],
+                               ys: Sequence[float],
+                               target_x: float,
+                               cost_increase: float) -> Tuple[float, float]:
+    xs = np.array(xs, dtype=np.float64)
+    ys = np.array(ys, dtype=np.float64)
+    fit = linregress(xs, ys)
+    base_cost = least_squares_cost(xs=xs, ys=ys, intercept=fit.intercept, slope=fit.slope)
+    base_y = fit.intercept + target_x * fit.slope
+
+    def cost_for_y(y2: float) -> float:
+        fit2 = least_squares_through_point(xs=xs, ys=ys, required_x=target_x, required_y=y2)
+        return least_squares_cost(xs=xs, ys=ys, intercept=fit2.intercept, slope=fit2.slope)
+
+    low_y = binary_intercept(start_x=base_y, step=-1, target_y=base_cost + cost_increase, func=cost_for_y, atol=1e-5)
+    high_y = binary_intercept(start_x=base_y, step=1, target_y=base_cost + cost_increase, func=cost_for_y, atol=1e-5)
+    return low_y, high_y
+
+
+def least_squares_slope_range(*,
+                              xs: Sequence[float],
+                              ys: Sequence[float],
+                              cost_increase: float) -> Tuple[float, float, float]:
+    xs = np.array(xs, dtype=np.float64)
+    ys = np.array(ys, dtype=np.float64)
+    fit = linregress(xs, ys)
+    base_cost = least_squares_cost(xs=xs, ys=ys, intercept=fit.intercept, slope=fit.slope)
+
+    def cost_for_slope(slope: float) -> float:
+        fit2 = least_squares_with_slope(xs=xs, ys=ys, required_slope=slope)
+        return least_squares_cost(xs=xs, ys=ys, intercept=fit2.intercept, slope=fit2.slope)
+
+    low_slope = binary_intercept(start_x=fit.slope, step=-1, target_y=base_cost + cost_increase, func=cost_for_slope, atol=1e-5)
+    high_slope = binary_intercept(start_x=fit.slope, step=1, target_y=base_cost + cost_increase, func=cost_for_slope, atol=1e-5)
+    return low_slope, fit.slope, high_slope

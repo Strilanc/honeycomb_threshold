@@ -6,15 +6,18 @@ import sys
 from pathlib import Path
 from typing import List, Tuple, Dict
 import matplotlib.colors as mcolors
+import numpy as np
 
 from scipy.stats import linregress
 from scipy.stats._stats_mstats_common import LinregressResult
 
 import matplotlib.pyplot as plt
 
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from collect_data import read_recorded_data, ProblemShotData, ShotData, DecodingProblemDesc
+from probability_util import least_squares_output_range, least_squares_slope_range
 from plotting import total_error_to_per_piece_error
 
 
@@ -85,12 +88,12 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
     if focus:
         styles = {
             "SD6": [
-                ("honeycomb_SD6", "internal_correlated"),
                 ("surface_SD6", "internal_correlated"),
+                ("honeycomb_SD6", "internal_correlated"),
             ],
             "SI500": [
-                ("honeycomb_SI500", "internal_correlated"),
                 ("surface_SI500", "internal_correlated"),
+                ("honeycomb_SI500", "internal_correlated"),
             ],
             "EM3": [
                 None,
@@ -183,10 +186,6 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
             ("honeycomb_EM3_v2", "internal"),
             ("honeycomb_EM3_v2", "internal_correlated"),
         ],
-        # "PC3": [
-        #     ("honeycomb_PC3", "internal"),
-        #     ("honeycomb_PC3", "internal_correlated"),
-        # ],
     }
 
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
@@ -205,18 +204,22 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
             groups = LambdaGroup.groups_from_data(case_data)
             lambda_xs = []
             lambda_ys = []
+            lambda_ys_low = []
+            lambda_ys_high = []
             noises = sorted(groups.keys())
             if not noises:
                 continue
             for k, noise in enumerate(noises):
                 group = groups[noise]
                 if group.appears_to_be_suppressing_errors:
-                    y = 1 / math.exp(group.linear_fit_d_to_log_err.slope) ** 2
+                    l1, l2, l3 = group.projected_lambda_range()
                     lambda_xs.append(noise)
-                    lambda_ys.append(y)
+                    lambda_ys_low.append(l1)
+                    lambda_ys.append(l2)
+                    lambda_ys_high.append(l3)
                     if group.has_low_confidence_extrapolation:
                         poor_xs.append(noise)
-                        poor_ys.append(y)
+                        poor_ys.append(l2)
             rep = groups[noises[0]].rep
             label = rep.circuit_style
             if label.endswith("_v2"):
@@ -225,7 +228,8 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
                 label = label[:-len(name) - 1]
             if "correlated" in rep.decoder:
                 label += " (correlated)"
-            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label)
+            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100-i)
+            ax.fill_between(lambda_xs, lambda_ys_low, lambda_ys_high, alpha=0.3)
 
         have_any_poor |= bool(poor_ys)
         if have_any_poor:
@@ -239,7 +243,8 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
         ax.grid()
 
         ax.set_title(name)
-    axs[1].legend(loc="upper right")
+    a, b = axs[-2].get_legend_handles_labels()
+    axs[-2].legend(a, b, loc="upper right")
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
@@ -263,10 +268,6 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
             ("honeycomb_EM3_v2", "internal"),
             ("honeycomb_EM3_v2", "internal_correlated"),
         ],
-        # "PC3": [
-        #     ("honeycomb_PC3", "internal"),
-        #     ("honeycomb_PC3", "internal_correlated"),
-        # ],
     }
 
     all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
@@ -285,6 +286,8 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
             groups = LambdaGroup.groups_from_data(case_data)
             lambda_xs = []
             lambda_ys = []
+            lambda_ys_low = []
+            lambda_ys_high = []
             noises = sorted(groups.keys())
             if not noises:
                 continue
@@ -292,8 +295,11 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
                 group = groups[noise]
                 if group.appears_to_be_suppressing_errors:
                     y = group.projected_required_qubit_count(1e-12, style)
+                    y_low, y_high = group.projected_qubit_count_range(1e-12, style)
                     lambda_xs.append(noise)
                     lambda_ys.append(y)
+                    lambda_ys_low.append(y_low)
+                    lambda_ys_high.append(y_high)
                     if group.has_low_confidence_extrapolation:
                         poor_xs.append(noise)
                         poor_ys.append(y)
@@ -305,7 +311,8 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
                 label = label[:-len(name) - 1]
             if "correlated" in rep.decoder:
                 label += " (correlated)"
-            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label)
+            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100-case_i)
+            ax.fill_between(lambda_xs, lambda_ys_low, lambda_ys_high, alpha=0.3)
 
         have_any_poor |= bool(poor_ys)
         if have_any_poor:
@@ -319,7 +326,8 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
         ax.grid()
 
         ax.set_title(name)
-    axs[1].legend(loc="lower right")
+    a, b = axs[-2].get_legend_handles_labels()
+    axs[-2].legend(a, b, loc="lower right")
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
@@ -383,9 +391,30 @@ class LambdaGroup:
     @functools.cached_property
     def linear_fit_d_to_log_err(self) -> LinregressResult:
         xs, ys = self.combo_data
-        if not xs or len(xs) <= 1:
+        if len(xs) <= 1:
             return linregress([0, 1], [0, 0])
         return linregress(xs, [math.log(y) for y in ys])
+
+    def projected_lambda_range(self) -> Tuple[float, float, float]:
+        xs, ys = self.combo_data
+        xs = np.array(xs)
+        ys = np.array([math.log(y) for y in ys])
+        def slope_to_lambda(s: float) -> float:
+            return 1 / math.exp(s) ** 2
+        if len(xs) <= 1:
+            slopes = [0, 0, 0]
+        else:
+            slopes = least_squares_slope_range(xs=xs, ys=ys)
+        return tuple(slope_to_lambda(s) for s in slopes)
+
+    def projected_qubit_count_range(self, target_probability: float, style: str) -> Tuple[float, float]:
+        xs, ys = self.combo_data
+        xs = np.array(xs)
+        ys = np.array([math.log(y) for y in ys])
+        if len(xs) <= 1:
+            return (self.projected_required_qubit_count(target_probability, style),) * 2
+        d1, d2 = least_squares_output_range(xs=ys, ys=xs, target_x=math.log(target_probability))
+        return self._d_to_q(int(math.ceil(d1)), style), self._d_to_q(int(math.ceil(d2)), style)
 
     def projected_error(self, distance: float) -> float:
         r = self.linear_fit_d_to_log_err
@@ -395,8 +424,7 @@ class LambdaGroup:
         r = self.linear_fit_d_to_log_err
         return (math.log(target_error) - r.intercept) / r.slope
 
-    def projected_required_qubit_count(self, target_error: float, style: str) -> int:
-        d = int(math.ceil(self.projected_distance(target_error)))
+    def _d_to_q(self, d: int, style: str) -> int:
         q = self.rep.num_qubits
         if "surface" in style:
             q += 1
@@ -409,6 +437,10 @@ class LambdaGroup:
             raise NotImplementedError()
         assert abs(q - math.floor(q + 0.5)) < 1e-5
         return q
+
+    def projected_required_qubit_count(self, target_error: float, style: str) -> int:
+        d = int(math.ceil(self.projected_distance(target_error)))
+        return self._d_to_q(d, style)
 
 
 if __name__ == '__main__':
