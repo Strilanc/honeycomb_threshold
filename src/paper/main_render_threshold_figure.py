@@ -161,7 +161,9 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
                 axs[row][col].set_title("")
             if (row, col - 1) in used:
                 axs[row][col].set_ylabel("")
-
+    for ax_row in axs:
+        for ax in ax_row:
+            ax.yaxis.set_ticks_position('both')
     return fig
 
 
