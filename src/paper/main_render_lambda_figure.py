@@ -1,24 +1,25 @@
-import collections
 import dataclasses
 import functools
 import math
 import pathlib
 import sys
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict
+from typing import List, Tuple, Dict
 import matplotlib.colors as mcolors
+import numpy as np
 
 from scipy.stats import linregress
 from scipy.stats._stats_mstats_common import LinregressResult
 
+import matplotlib.pyplot as plt
+
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # Non-package import directory hack.
 
 from collect_data import read_recorded_data, ProblemShotData, ShotData, DecodingProblemDesc
-from honeycomb_layout import HoneycombLayout
-
+from probability_util import least_squares_output_range, least_squares_slope_range
 from plotting import total_error_to_per_piece_error
 
-import matplotlib.pyplot as plt
 
 def main():
     if len(sys.argv) == 1:
@@ -34,51 +35,312 @@ def main():
 
     all_data = read_recorded_data(*csvs)
 
-    make_lambda_combo_plot(all_data, 0)
-    make_lambda_combo_plot(all_data, 1)
-    make_lambda_combo_plot(all_data, 2)
+    fig0, _ = plot_lambda_line_fits_combo(all_data, focus=False)
+    fig0.set_size_inches(13, 10)
+    fig0.savefig("gen/linefits_all.pdf", bbox_inches='tight')
+    fig0.savefig("gen/linefits_all.png", bbox_inches='tight', dpi=200)
+
+    fig1, _ = plot_lambda_line_fits_combo(all_data, focus=True)
+    fig1.set_size_inches(13, 10)
+    fig1.savefig("gen/linefits.pdf", bbox_inches='tight')
+    fig1.savefig("gen/linefits.png", bbox_inches='tight', dpi=200)
+
+    fig2, _ = plot_lambda_combo(all_data)
+    fig2.set_size_inches(13, 5)
+    fig2.savefig("gen/lambda.pdf", bbox_inches='tight')
+    fig2.savefig("gen/lambda.png", bbox_inches='tight', dpi=200)
+
+    fig3, _ = plot_teraquop_combo(all_data)
+    fig3.set_size_inches(13, 5)
+    fig3.savefig("gen/teraquop.pdf", bbox_inches='tight')
+    fig3.savefig("gen/teraquop.png", bbox_inches='tight', dpi=200)
 
     plt.show()
 
 
-def make_lambda_combo_plot(all_data: ProblemShotData, magic_plot_type_integer: int):
-    expected_styles = ["honeycomb_SD6", "honeycomb_EM3_v2", "honeycomb_PC3", "honeycomb_SI500"]
+def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple[plt.Figure, plt.Axes]:
+    styles = {
+        "SD6": [
+            ("honeycomb_SD6", "internal"),
+            ("honeycomb_SD6", "internal_correlated"),
+            ("surface_SD6", "internal"),
+            ("surface_SD6", "internal_correlated"),
+        ],
+        "SI500": [
+            ("honeycomb_SI500", "internal"),
+            ("honeycomb_SI500", "internal_correlated"),
+            ("surface_SI500", "internal"),
+            ("surface_SI500", "internal_correlated"),
+        ],
+        "EM3": [
+            None,
+            None,
+            ("honeycomb_EM3_v2", "internal"),
+            ("honeycomb_EM3_v2", "internal_correlated"),
+        ],
+        # "PC3": [
+        #     ("honeycomb_PC3", "internal"),
+        #     ("honeycomb_PC3", "internal_correlated"),
+        #     None,
+        #     None,
+        # ],
+    }
+    if focus:
+        styles = {
+            "SD6": [
+                ("surface_SD6", "internal_correlated"),
+                ("honeycomb_SD6", "internal_correlated"),
+            ],
+            "SI500": [
+                ("surface_SI500", "internal_correlated"),
+                ("honeycomb_SI500", "internal_correlated"),
+            ],
+            "EM3": [
+                None,
+                ("honeycomb_EM3_v2", "internal_correlated"),
+            ],
+        }
+
     seen_probabilities = {
         k.noise
         for k in all_data.data
     }
     p2i = {p: i for i, p in enumerate(sorted(seen_probabilities))}
-    groups = all_data.grouped_by(lambda e: e.circuit_style)
-    for k in groups.keys():
-        if k not in expected_styles:
-            raise NotImplementedError()
+    all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
 
     fig = plt.figure()
-    gs = fig.add_gridspec(1, 4, hspace=0.05, wspace=0.05)
+    ncols = len(styles)
+    nrows = len(styles["SD6"])
+    gs = fig.add_gridspec(ncols=ncols, nrows=nrows, hspace=0.075, wspace=0.05)
     axs = gs.subplots(sharex=True, sharey=True)
-    for i, style in enumerate(expected_styles):
-        style_data = groups.get(style, ProblemShotData({}))
+    used = set()
+    for col, (name, cases) in enumerate(styles.items()):
+        for row, style_decoder in enumerate(cases):
+            ax: plt.Axes = axs[row][col]
+            if style_decoder is None:
+                ax.axis('off')
+                continue
+            used.add((row, col))
+            style_data = all_groups.get(style_decoder, ProblemShotData({}))
+            axs[row][col].set_title(name)
+
+            groups = LambdaGroup.groups_from_data(style_data)
+            markers = "ov*sp^<>8P+xXDd|"
+            colors = list(mcolors.TABLEAU_COLORS) * 3
+            lambda_xs = []
+            lambda_ys = []
+            for noise in sorted(groups.keys()):
+                group = groups[noise]
+                r = group.linear_fit_d_to_log_err
+                xs, ys = group.combo_data
+                order = p2i[noise]
+                if group.appears_to_be_suppressing_errors:
+                    ys2 = [1e0, 1e-13]
+                    xs2 = [group.projected_distance(y) for y in ys2]
+                    ax.plot(xs2, ys2, '--', color=colors[order])
+                    lambda_xs.append(noise)
+                    lambda_ys.append(1 / math.exp(r.slope))
+                ax.scatter(xs, ys, color=colors[order], marker=markers[order], label=f"{noise}")
+            ax.semilogy()
+            ax.set_xlim(0, 30)
+            ax.set_ylim(1e-12, 1e0)
+            ax.grid()
+
+    a, b = axs[0][0].get_legend_handles_labels()
+    axs[0][-1].legend(a[::-1], b[::-1], loc="upper center", title="Physical Error Rates")
+
+    for row in range(nrows):
+        for col in range(ncols):
+            if (row + 1, col) in used:
+                axs[row][col].set_xlabel("")
+            if (row - 1, col) in used:
+                axs[row][col].set_title("")
+            if (row, col - 1) in used:
+                axs[row][col].set_ylabel("")
+
+    for k in range(len(styles)):
+        axs[-1][k].set_xlabel("Code Distance")
+    for k in range(nrows):
+        style_decoder = styles["SD6"][k]
+        title = style_decoder[0].split("_")[0]
+        title = title.capitalize()
+        title += " (Correlated)" if "correlated" in style_decoder[1] else " (Standard)"
+        axs[k][0].set_ylabel(f"{title}\nCode Cell Error Rate")
+    for ax_row in axs:
+        for ax in ax_row:
+            ax.yaxis.set_ticks_position('both')
+    return fig, axs
+
+
+def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
+    styles = {
+        "SD6": [
+            ("honeycomb_SD6", "internal"),
+            ("honeycomb_SD6", "internal_correlated"),
+            ("surface_SD6", "internal"),
+            ("surface_SD6", "internal_correlated"),
+        ],
+        "SI500": [
+            ("honeycomb_SI500", "internal"),
+            ("honeycomb_SI500", "internal_correlated"),
+            ("surface_SI500", "internal"),
+            ("surface_SI500", "internal_correlated"),
+        ],
+        "EM3": [
+            ("honeycomb_EM3_v2", "internal"),
+            ("honeycomb_EM3_v2", "internal_correlated"),
+        ],
+    }
+
+    all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
+
+    fig = plt.figure()
+    gs = fig.add_gridspec(ncols=len(styles), nrows=1, hspace=0.05, wspace=0.05)
+    axs = gs.subplots(sharex=True, sharey=True)
+    have_any_poor = False
+    for i, (name, cases) in enumerate(styles.items()):
         ax: plt.Axes = axs[i]
 
-        if magic_plot_type_integer == 0:
-            plot_lambda_line_fits(
-                style_data,
-                ax=ax,
-                fig=fig,
-                p2i=p2i)
-        elif magic_plot_type_integer == 1:
-            plot_lambda(style_data, ax=ax, fig=fig)
-        else:
-            plot_quop_regions(style_data, style=style, ax=ax, fig=fig)
+        poor_xs = []
+        poor_ys = []
+        for case_i, case in enumerate(cases):
+            case_data = all_groups.get(case, ProblemShotData({}))
+            groups = LambdaGroup.groups_from_data(case_data)
+            lambda_xs = []
+            lambda_ys = []
+            lambda_ys_low = []
+            lambda_ys_high = []
+            noises = sorted(groups.keys())
+            if not noises:
+                continue
+            for k, noise in enumerate(noises):
+                group = groups[noise]
+                if group.appears_to_be_suppressing_errors:
+                    l1, l2, l3 = group.projected_lambda_range()
+                    lambda_xs.append(noise)
+                    lambda_ys_low.append(l1)
+                    lambda_ys.append(l2)
+                    lambda_ys_high.append(l3)
+                    if group.has_low_confidence_extrapolation:
+                        poor_xs.append(noise)
+                        poor_ys.append(l2)
+            rep = groups[noises[0]].rep
+            label = rep.circuit_style
+            if label.endswith("_v2"):
+                label = label[:-3]
+            if label.endswith("_" + name):
+                label = label[:-len(name) - 1]
+            label = label.capitalize()
+            if "correlated" in rep.decoder:
+                label += " (Correlated)"
+            else:
+                label += " (Standard)"
+            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100 - i)
+            ax.fill_between(lambda_xs, lambda_ys_low, lambda_ys_high, alpha=0.3)
+        if have_any_poor:
+            ax.scatter(poor_xs, poor_ys, s=200, color="red", zorder=100, alpha=0.3)
 
-        if style.endswith("_v2"):
-            ax.set_title(style[:-3])
-        else:
-            ax.set_title(style)
-        if i == 6 and magic_plot_type_integer == 0:
-            ax.legend(loc="upper right")
-        if i == 6 and magic_plot_type_integer == 2:
-            ax.legend(loc="lower right")
+        ax.set_xlabel("Physical Error Rate")
+        ax.set_ylabel("Lambda Factor")
+        ax.set_xlim(1e-4, 2e-2)
+        ax.set_ylim(1, 100)
+        ax.loglog()
+        ax.grid(which='minor')
+        ax.grid(which='major', color='black')
+
+        ax.set_title(name)
+    a, b = axs[-2].get_legend_handles_labels()
+    axs[-2].legend(a, b, loc="upper right")
+    for ax in fig.get_axes():
+        ax.label_outer()
+    for ax in axs:
+        ax.yaxis.set_ticks_position('both')
+    return fig, axs
+
+
+def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
+    styles = {
+        "SD6": [
+            ("honeycomb_SD6", "internal"),
+            ("honeycomb_SD6", "internal_correlated"),
+            ("surface_SD6", "internal"),
+            ("surface_SD6", "internal_correlated"),
+        ],
+        "SI500": [
+            ("honeycomb_SI500", "internal"),
+            ("honeycomb_SI500", "internal_correlated"),
+            ("surface_SI500", "internal"),
+            ("surface_SI500", "internal_correlated"),
+        ],
+        "EM3": [
+            ("honeycomb_EM3_v2", "internal"),
+            ("honeycomb_EM3_v2", "internal_correlated"),
+        ],
+    }
+
+    all_groups = all_data.grouped_by(lambda e: (e.circuit_style, e.decoder))
+
+    fig = plt.figure()
+    gs = fig.add_gridspec(ncols=len(styles), nrows=1, hspace=0.05, wspace=0.05)
+    axs = gs.subplots(sharex=True, sharey=True)
+    have_any_poor = False
+    for i, (name, cases) in enumerate(styles.items()):
+        ax: plt.Axes = axs[i]
+
+        poor_xs = []
+        poor_ys = []
+        for case_i, (style, decoder) in enumerate(cases):
+            case_data = all_groups.get((style, decoder), ProblemShotData({}))
+            groups = LambdaGroup.groups_from_data(case_data)
+            lambda_xs = []
+            lambda_ys = []
+            lambda_ys_low = []
+            lambda_ys_high = []
+            noises = sorted(groups.keys())
+            if not noises:
+                continue
+            for k, noise in enumerate(noises):
+                group = groups[noise]
+                if group.appears_to_be_suppressing_errors:
+                    y = group.projected_required_qubit_count(1e-12, style)
+                    y_low, y_high = group.projected_qubit_count_range(1e-12, style)
+                    lambda_xs.append(noise)
+                    lambda_ys.append(y)
+                    lambda_ys_low.append(y_low)
+                    lambda_ys_high.append(y_high)
+                    if group.has_low_confidence_extrapolation:
+                        poor_xs.append(noise)
+                        poor_ys.append(y)
+            rep = groups[noises[0]].rep
+            label = rep.circuit_style
+            if label.endswith("_v2"):
+                label = label[:-3]
+            if label.endswith("_" + name):
+                label = label[:-len(name) - 1]
+            label = label.capitalize()
+            if "correlated" in rep.decoder:
+                label += " (Correlated)"
+            else:
+                label += " (Standard)"
+            ax.plot(lambda_xs, lambda_ys, marker="ov*s"[case_i], label=label, zorder=100-case_i)
+            ax.fill_between(lambda_xs, lambda_ys_low, lambda_ys_high, alpha=0.3)
+
+        have_any_poor |= bool(poor_ys)
+        if have_any_poor:
+            ax.scatter(poor_xs, poor_ys, s=200, color="red", zorder=100, alpha=0.3)
+
+        ax.set_xlabel("Physical Error Rate")
+        ax.set_ylabel("Teraquop Qubit Count")
+        ax.set_xlim(1e-4, 2e-2)
+        ax.set_ylim(1e2, 1e5)
+        ax.loglog()
+        ax.grid(which='minor')
+        ax.grid(which='major', color='black')
+
+        ax.set_title(name)
+    axs[1].legend(loc="lower right")
+    for ax in axs:
+        ax.yaxis.set_ticks_position('both')
     for ax in fig.get_axes():
         ax.label_outer()
     return fig, axs
@@ -102,12 +364,12 @@ class LambdaGroup:
             p1 = d1.logical_error_rate if d1 is not None else None
             p2 = d2.logical_error_rate if d2 is not None else None
 
+            if p2 is None or p1 is None:
+                print(f"WARNING EXTRAPOLATING SECOND OBSERVABLE DATA POINT FOR {self.rep}")
             if p2 is None:
                 p2 = p1
-                print("WARNING FILLING IN FAKE DATA REMOVE")
             if p1 is None:
                 p1 = p2
-                print("WARNING FILLING IN FAKE DATA REMOVE")
 
             if p1 and p2:
                 cells = int(math.ceil(self.rep.rounds / self.rep.code_distance))
@@ -126,16 +388,46 @@ class LambdaGroup:
                 groups[key.noise] = LambdaGroup(key.noise, key, {}, {})
             g = groups[key.noise]
             d = g.distance_error_pairs_h if key.preserved_observable in "HX" else g.distance_error_pairs_v
-            assert key.code_distance not in d
+            assert key.code_distance not in d, key
             d[key.code_distance] = val
         return groups
+
+    @property
+    def appears_to_be_suppressing_errors(self) -> bool:
+        r = self.linear_fit_d_to_log_err
+        return (r.slope < -0.02 and r.intercept < -0.1) or r.slope < -1
+
+    @property
+    def has_low_confidence_extrapolation(self) -> bool:
+        return min(len(self.distance_error_pairs_v), len(self.distance_error_pairs_h)) < 3
 
     @functools.cached_property
     def linear_fit_d_to_log_err(self) -> LinregressResult:
         xs, ys = self.combo_data
-        if not xs or len(xs) <= 1:
+        if len(xs) <= 1:
             return linregress([0, 1], [0, 0])
         return linregress(xs, [math.log(y) for y in ys])
+
+    def projected_lambda_range(self) -> Tuple[float, float, float]:
+        xs, ys = self.combo_data
+        xs = np.array(xs)
+        ys = np.array([math.log(y) for y in ys])
+        def slope_to_lambda(s: float) -> float:
+            return 1 / math.exp(s) ** 2
+        if len(xs) <= 1:
+            slopes = [0, 0, 0]
+        else:
+            slopes = least_squares_slope_range(xs=xs, ys=ys, cost_increase=1)
+        return tuple(slope_to_lambda(s) for s in slopes)
+
+    def projected_qubit_count_range(self, target_probability: float, style: str) -> Tuple[float, float]:
+        xs, ys = self.combo_data
+        xs = np.array(xs)
+        ys = np.array([math.log(y) for y in ys])
+        if len(xs) <= 1:
+            return (self.projected_required_qubit_count(target_probability, style),) * 2
+        d1, d2 = least_squares_output_range(xs=ys, ys=xs, target_x=math.log(target_probability), cost_increase=1)
+        return self._d_to_q(int(math.ceil(d1)), style), self._d_to_q(int(math.ceil(d2)), style)
 
     def projected_error(self, distance: float) -> float:
         r = self.linear_fit_d_to_log_err
@@ -145,112 +437,23 @@ class LambdaGroup:
         r = self.linear_fit_d_to_log_err
         return (math.log(target_error) - r.intercept) / r.slope
 
+    def _d_to_q(self, d: int, style: str) -> int:
+        q = self.rep.num_qubits
+        if "surface" in style:
+            q += 1
+            q *= (d / self.rep.code_distance) ** 2
+            q -= 1
+        elif "honeycomb" in style:
+            d = int(math.ceil(d / 4)) * 4
+            q *= (d / self.rep.code_distance) ** 2
+        else:
+            raise NotImplementedError()
+        assert abs(q - math.floor(q + 0.5)) < 1e-5
+        return q
+
     def projected_required_qubit_count(self, target_error: float, style: str) -> int:
         d = int(math.ceil(self.projected_distance(target_error)))
-        u = int(math.ceil(d / 4))
-        lay = HoneycombLayout(data_width=u * 4, data_height=u * 6, sub_rounds=1, style=style, obs="H", noise=0)
-        assert lay.code_distance_1qdep in [d, d + 1, d + 2, d + 3]
-        return lay.num_qubits
-
-
-def plot_quop_regions(data: ProblemShotData,
-                      *,
-                      style: str,
-                      fig: plt.Figure = None,
-                      ax: plt.Axes = None):
-    assert (fig is None) == (ax is None)
-    if fig is None:
-        fig = plt.figure()
-        ax = fig.add_subplot()
-
-    groups = LambdaGroup.groups_from_data(data)
-    ps = [1e-6, 1e-9, 1e-12]
-    labels = ["megaquop regime", "gigaquop regime", "teraquop+ regime"]
-    curves = [([], []) for _ in range(4)]
-    y_max = 1e5
-
-    for noise in sorted(groups.keys()):
-        group = groups[noise]
-        r = group.linear_fit_d_to_log_err
-        if r.slope < -0.02:
-            curves[3][0].append(noise)
-            curves[3][1].append(y_max)
-            for k, p in enumerate(ps):
-                q = group.projected_required_qubit_count(p, style=style)
-                curves[k][0].append(noise)
-                curves[k][1].append(q)
-    for k in range(3):
-        ax.plot(curves[k][0], curves[k][1], label=labels[k])
-        ax.fill_between(curves[k][0], curves[k][1], curves[k + 1][1])
-    ax.loglog()
-    ax.set_xlim(1e-4, 1e-2)
-    ax.set_ylim(1e2, y_max)
-    ax.set_xlabel("Noise")
-    ax.set_ylabel("Physical qubits per logical qubit")
-    ax.grid()
-
-
-def plot_lambda_line_fits(data: ProblemShotData,
-                          *,
-                          p2i: Dict[float, int],
-                          fig: plt.Figure = None,
-                          ax: plt.Axes = None):
-    assert (fig is None) == (ax is None)
-    if fig is None:
-        fig = plt.figure()
-        ax = fig.add_subplot()
-
-    groups = LambdaGroup.groups_from_data(data)
-    markers = "ov*sp^<>8PhH+xXDd|"
-    colors = list(mcolors.TABLEAU_COLORS) * 3
-    lambda_xs = []
-    lambda_ys = []
-    for noise in sorted(groups.keys()):
-        group = groups[noise]
-        r = group.linear_fit_d_to_log_err
-        xs, ys = group.combo_data
-        order = p2i[noise]
-        if r.slope < -0.02:
-            ys2 = [1e0, 1e-13]
-            xs2 = [group.projected_distance(y) for y in ys2]
-            ax.plot(xs2, ys2, '--', color=colors[order])
-            lambda_xs.append(noise)
-            lambda_ys.append(1 / math.exp(r.slope))
-        ax.scatter(xs, ys, color=colors[order], marker=markers[order], label=f"{noise=}")
-    ax.semilogy()
-    ax.set_xlim(0, 50)
-    ax.set_ylim(1e-12, 1e0)
-    ax.set_xlabel("1QDep Code Distance")
-    ax.set_ylabel("Code Cell Error Rate (Either Observable)")
-    ax.grid()
-
-
-def plot_lambda(data: ProblemShotData,
-                *,
-                fig: plt.Figure = None,
-                ax: plt.Axes = None):
-    assert (fig is None) == (ax is None)
-    if fig is None:
-        fig = plt.figure()
-        ax = fig.add_subplot()
-
-    groups = LambdaGroup.groups_from_data(data)
-    lambda_xs = []
-    lambda_ys = []
-    for noise in sorted(groups.keys()):
-        group = groups[noise]
-        r = group.linear_fit_d_to_log_err
-        if r.slope != 0:
-            lambda_xs.append(noise)
-            lambda_ys.append(1 / math.exp(r.slope)**2)
-
-    ax.set_xlabel("Noise")
-    ax.set_ylabel("Suppression per Code Step (λ)")
-    ax.semilogx()
-    ax.plot(lambda_xs, lambda_ys)
-    ax.set_xlim(1e-4, 1e-2)
-    ax.set_ylim(1, 40)
-    ax.grid()
+        return self._d_to_q(d, style)
 
 
 if __name__ == '__main__':

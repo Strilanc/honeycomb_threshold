@@ -126,7 +126,7 @@ def decode_using_internal_decoder(circuit: stim.Circuit,
         if path is None:
             raise RuntimeError(
                 "You need an `internal_decoder.binary` file in the working directory to "
-                "use `use_internal_decoder=True`.")
+                "use `decoder=internal` or `decoder=internal_correlated`.")
 
         command = (f"{path} "
                    f"-mode fi_match_from_dem "

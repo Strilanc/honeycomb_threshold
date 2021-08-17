@@ -3,6 +3,7 @@ from typing import Optional
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+import matplotlib.colors as mcolors
 
 from collect_data import ProblemShotData, DecodingProblemDesc
 
@@ -26,6 +27,7 @@ def plot_data(data: ProblemShotData,
               fig: plt.Figure = None,
               ax: plt.Axes = None,
               legend: bool = True,
+              marker_offset=0,
               focus_on_threshold: bool = True):
     if out_path is None and show is None and ax is None:
         show = True
@@ -36,6 +38,7 @@ def plot_data(data: ProblemShotData,
         ax = fig.add_subplot()
 
     markers = "ov*sp^<>8PhH+xXDd|" * 100
+    colors = list(mcolors.TABLEAU_COLORS) * 3
     order = 0
     d: DecodingProblemDesc
     for key, vals in data.grouped_by(lambda e: e.with_changes(noise=0)).items():
@@ -62,10 +65,8 @@ def plot_data(data: ProblemShotData,
             ys_low.append(cor(low))
             ys_high.append(cor(high))
         label = f"{key.rounds} rounds, {key.data_width}x{key.data_height} data"
-        if key.decoder.endswith("correlated"):
-            label += ",corr"
-        ax.plot(xs, ys, label=label, marker=markers[order], zorder=100 - order)
-        ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3)
+        ax.plot(xs, ys, label=label, marker=markers[order + marker_offset], zorder=100 - order, color=colors[order + marker_offset])
+        ax.fill_between(x_bounds, ys_low, ys_high, alpha=0.3, color=colors[order + marker_offset])
         order += 1
 
     if data and legend:
@@ -84,12 +85,12 @@ def plot_data(data: ProblemShotData,
         x_min, x_max = 5e-4, 1e-2
         y_min, y_max = 1e-2, 1e-1
     else:
-        x_min, x_max = 1e-4, 0.5
+        x_min, x_max = 1e-4, 3e-2
         y_min, y_max = 1e-8, 0.5
-    ticks_x = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if x_min <= k*10**-p <= x_max]
-    ticks_y = [k*10**-p for k in [1, 2, 5] for p in range(1, 10) if y_min <= k*10**-p <= y_max]
+    ticks_x = [0.5] * (x_max >= 0.5) + [k*10**-p for k in [1] for p in range(1, 10) if x_min <= k*10**-p <= x_max]
+    ticks_y = [0.5] * (y_max >= 0.5) + [k*10**-p for k in [1] for p in range(1, 10) if y_min <= k*10**-p <= y_max]
     ax.set_ylabel("Per-round Logical Error Rate")
-    ax.set_xlabel("Noise (p)")
+    ax.set_xlabel("Physical Error Rate")
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
     ax.set_title(title)

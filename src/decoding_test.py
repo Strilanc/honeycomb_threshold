@@ -35,7 +35,7 @@ def test_internal_decoder_runs(tile_diam: int, sub_rounds: int, style: str, obs:
     range(5, 10),
     ["PC3", "SD6", "EM3"],
     ["H", "V"]
-) if internal_decoder_path() is not None else [])
+))
 def test_pymatching_runs(tile_diam: int, sub_rounds: int, style: str, obs: str):
     sample_decode_count_correct(
         num_shots=100,

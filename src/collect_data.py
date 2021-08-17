@@ -3,6 +3,7 @@ import dataclasses
 import math
 import pathlib
 import time
+import numpy as np
 from typing import Optional, Tuple, Dict, List, Callable, Any
 
 import stim
@@ -187,6 +188,44 @@ def collect_simulated_experiment_data(problems: List[DecodingProblem],
             if num_seen_errors >= total_shots * 0.48 and num_seen_errors >= 10:
                 break
             num_next_shots = min(max_batch, min(2 * num_next_shots, max_shots - total_shots))
+
+
+def collect_detection_fraction_data(problems: List[DecodingProblem],
+                                    *,
+                                    shots: int,
+                                    out_path: Optional[str],
+                                    discard_previous_data: bool):
+    print(CSV_HEADER, flush=True)
+    if out_path is not None:
+        if discard_previous_data or not pathlib.Path(out_path).exists():
+            with open(out_path, "w") as f:
+                print(CSV_HEADER, file=f)
+
+    for problem in problems:
+        t0 = time.monotonic()
+        samples = problem.circuit_maker().compile_detector_sampler().sample(shots)
+        num_detections = np.count_nonzero(samples)
+        num_samples = math.prod(samples.shape)
+        t1 = time.monotonic()
+        record = ",".join(str(e) for e in [
+            problem.desc.data_width,
+            problem.desc.data_height,
+            problem.desc.rounds,
+            problem.desc.noise,
+            problem.desc.circuit_style,
+            "-",
+            problem.desc.code_distance,
+            problem.desc.num_qubits,
+            num_samples,
+            num_samples - num_detections,
+            t1 - t0,
+            "detection_fraction",
+            CSV_HEADER_VERSION,
+        ])
+        if out_path is not None:
+            with open(out_path, "a") as f:
+                print(record, file=f)
+        print(record, flush=True)
 
 
 @dataclasses.dataclass
