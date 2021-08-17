@@ -234,6 +234,19 @@ class ShotData:
     num_correct: int = 0
     total_processing_seconds: float = 0
 
+    @property
+    def num_errors(self) -> int:
+        return self.num_shots - self.num_correct
+
+    def expected_additional_shots_needed(self, max_shots: int, max_errors: int, threshold_circuit_breaker: float) -> Tuple[int, int]:
+        if self.num_shots >= max_shots:
+            return 0, 0
+        if self.num_errors >= max_errors:
+            return 0, 0
+        if self.logical_error_rate >= threshold_circuit_breaker and self.num_shots >= 10:
+            return 0, 0
+        return max_shots - self.num_shots, max_errors - self.num_errors
+
     def likely_error_rate_bounds(self, *, desired_ratio_vs_max_likelihood: float) -> Tuple[float, float]:
         """Compute relative-likelihood bounds.
 
