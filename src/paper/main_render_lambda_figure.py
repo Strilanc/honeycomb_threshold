@@ -147,7 +147,7 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
             ax.grid()
 
     a, b = axs[0][0].get_legend_handles_labels()
-    axs[0][-1].legend(a[::-1], b[::-1], loc="upper center", title="Physical Error Rates")
+    axs[0][-1].legend(a[::-1], b[::-1], loc="upper left", title="Physical Error Rates")
 
     for row in range(nrows):
         for col in range(ncols):
