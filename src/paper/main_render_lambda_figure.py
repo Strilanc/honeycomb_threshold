@@ -364,12 +364,12 @@ class LambdaGroup:
             p1 = d1.logical_error_rate if d1 is not None else None
             p2 = d2.logical_error_rate if d2 is not None else None
 
-            if p2 is None or p1 is None:
-                print(f"WARNING EXTRAPOLATING SECOND OBSERVABLE DATA POINT FOR {self.rep}")
             if p2 is None:
                 p2 = p1
+                print(f"WARNING EXTRAPOLATING V OBSERVABLE DATA POINT FOR {self.rep} distance {d}")
             if p1 is None:
                 p1 = p2
+                print(f"WARNING EXTRAPOLATING H OBSERVABLE DATA POINT FOR {self.rep} distance {d}")
 
             if p1 and p2:
                 cells = int(math.ceil(self.rep.rounds / self.rep.code_distance))
