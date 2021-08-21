@@ -148,6 +148,8 @@ def collect_simulated_experiment_data(problems: List[DecodingProblem],
     for problem in problems:
         num_seen_errors = 0
         num_next_shots = min_shots
+        if max_batch is not None and max_batch < min_shots:
+            num_next_shots = max_batch
         total_shots = 0
         while True:
             t0 = time.monotonic()

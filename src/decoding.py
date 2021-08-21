@@ -13,12 +13,15 @@ import stim
 
 def sample_decode_count_correct(*,
                                 circuit: stim.Circuit,
+                                model_circuit: Optional[stim.Circuit] = None,
                                 num_shots: int,
                                 decoder: str) -> int:
     """Counts how many times a decoder correctly predicts the logical frame of simulated runs.
 
     Args:
         circuit: The circuit to sample from and decode results for.
+        model_circuit: The circuit to use to generate the error model. Defaults to be the same thing as
+            the circuit being sampled from.
         num_shots: The number of sample shots to take from the cirucit.
         decoder: The name of the decoder to use. Allowed values are:
             "pymatching": Use pymatching.
@@ -40,6 +43,11 @@ def sample_decode_count_correct(*,
 
     num_dets = circuit.num_detectors
     num_obs = circuit.num_observables
+    if model_circuit is None:
+        model_circuit = circuit
+    else:
+        assert model_circuit.num_detectors == num_dets
+        assert model_circuit.num_observables == num_obs
 
     # Sample some runs with known solutions.
     det_obs_samples = circuit.compile_detector_sampler().sample(num_shots, append_observables=True)
@@ -57,7 +65,7 @@ def sample_decode_count_correct(*,
     decode_method = decode_using_internal_decoder if use_internal_decoder else decode_using_pymatching
     predictions = decode_method(
         det_samples=det_samples,
-        circuit=circuit,
+        circuit=model_circuit,
         use_correlated_decoding=use_correlated_decoding,
     )
 

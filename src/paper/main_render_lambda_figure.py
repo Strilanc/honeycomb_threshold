@@ -61,16 +61,16 @@ def main():
 def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple[plt.Figure, plt.Axes]:
     styles = {
         "SD6": [
-            ("honeycomb_SD6", "internal"),
-            ("honeycomb_SD6", "internal_correlated"),
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
+            ("honeycomb_SD6", "internal"),
+            ("honeycomb_SD6", "internal_correlated"),
         ],
         "SI500": [
-            ("honeycomb_SI500", "internal"),
-            ("honeycomb_SI500", "internal_correlated"),
             ("surface_SI500", "internal"),
             ("surface_SI500", "internal_correlated"),
+            ("honeycomb_SI500", "internal"),
+            ("honeycomb_SI500", "internal_correlated"),
         ],
         "EM3": [
             None,
