@@ -51,7 +51,7 @@ def test_pymatching_runs(tile_diam: int, sub_rounds: int, style: str, obs: str):
     )
 
 
-@pytest.mark.parametrize('style', ["PC3", "EM3", "EM3_v2", "SI500", "SD6"])
+@pytest.mark.parametrize('style', ["PC3", "EM3", "EM3_v2", "SI1000", "SD6"])
 def test_graph_has_two_connected_components(style: str):
     error_graph = detector_error_model_to_nx_graph(
         generate_honeycomb_circuit(HoneycombLayout(

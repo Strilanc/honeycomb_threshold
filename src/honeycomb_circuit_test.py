@@ -12,7 +12,7 @@ from honeycomb_layout import HoneycombLayout
     [-1, 0, +1],
     range(1, 24),
     ["H", "V"],
-    ["PC3", "SD6", "EM3", "SI500"],
+    ["PC3", "SD6", "EM3", "SI1000"],
 ))
 def test_circuit_has_decomposing_error_model(
         tile_width: int,
@@ -20,7 +20,7 @@ def test_circuit_has_decomposing_error_model(
         sub_rounds: int,
         obs: str,
         style: str):
-    if style == "SI500" and sub_rounds % 3 != 0:
+    if style == "SI1000" and sub_rounds % 3 != 0:
         return
     circuit = generate_honeycomb_circuit(HoneycombLayout(
         data_width=2 * tile_width,
@@ -2204,13 +2204,13 @@ def test_circuit_details_EM3_h_obs():
     """)
 
 
-def test_circuit_details_si500():
+def test_circuit_details_SI1000():
     actual = generate_honeycomb_circuit(HoneycombLayout(
         data_width=2,
         data_height=6,
         sub_rounds=3 * 300,
         noise=0.001,
-        style="SI500",
+        style="SI1000",
         obs="V",
     ))
     cleaned = stim.Circuit(str(actual))

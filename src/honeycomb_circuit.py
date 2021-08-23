@@ -34,8 +34,8 @@ def generate_honeycomb_circuit(lay: HoneycombLayout) -> stim.Circuit:
         result += generate_rounds_pc3(lay, mtrack)
     elif lay.style in ["EM3", "EM3_v2"]:
         result += generate_rounds_em3(lay, mtrack)
-    elif lay.style == "SI500":
-        result += generate_rounds_si500(lay, mtrack)
+    elif lay.style == "SI1000":
+        result += generate_rounds_SI1000(lay, mtrack)
     else:
         raise NotImplementedError(lay.style)
     result += fault_tolerant_measurement(lay, mtrack)
@@ -264,7 +264,7 @@ def generate_rounds_em3(lay: HoneycombLayout, mtrack: MeasurementTracker) -> sti
     return result
 
 
-def generate_cycle_si500(subround: int, lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
+def generate_cycle_SI1000(subround: int, lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
     circuit = stim.Circuit()
     if subround > 0:
         circuit.append_operation("R", lay.measure_qubit_indices)
@@ -294,7 +294,7 @@ def generate_cycle_si500(subround: int, lay: HoneycombLayout, mtrack: Measuremen
     return circuit
 
 
-def generate_rounds_si500(lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
+def generate_rounds_SI1000(lay: HoneycombLayout, mtrack: MeasurementTracker) -> stim.Circuit:
     n = lay.sub_rounds
     if n == 0:
         raise NotImplementedError("Zero rounds.")
@@ -302,11 +302,11 @@ def generate_rounds_si500(lay: HoneycombLayout, mtrack: MeasurementTracker) -> s
         raise NotImplementedError(n)
 
     circuit = stim.Circuit()
-    circuit += generate_cycle_si500(0, lay, mtrack)
+    circuit += generate_cycle_SI1000(0, lay, mtrack)
     if n > 3:
-        circuit += generate_cycle_si500(3, lay, mtrack)
+        circuit += generate_cycle_SI1000(3, lay, mtrack)
     if n > 6:
-        circuit += generate_cycle_si500(6, lay, mtrack) * ((n - 6) // 3)
+        circuit += generate_cycle_SI1000(6, lay, mtrack) * ((n - 6) // 3)
 
     return circuit
 

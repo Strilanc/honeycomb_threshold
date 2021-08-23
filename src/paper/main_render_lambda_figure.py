@@ -66,11 +66,11 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
             ("honeycomb_SD6", "internal"),
             ("honeycomb_SD6", "internal_correlated"),
         ],
-        "SI500": [
-            ("surface_SI500", "internal"),
-            ("surface_SI500", "internal_correlated"),
-            ("honeycomb_SI500", "internal"),
-            ("honeycomb_SI500", "internal_correlated"),
+        "SI1000": [
+            ("surface_SI1000", "internal"),
+            ("surface_SI1000", "internal_correlated"),
+            ("honeycomb_SI1000", "internal"),
+            ("honeycomb_SI1000", "internal_correlated"),
         ],
         "EM3": [
             None,
@@ -91,9 +91,9 @@ def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple
                 ("surface_SD6", "internal_correlated"),
                 ("honeycomb_SD6", "internal_correlated"),
             ],
-            "SI500": [
-                ("surface_SI500", "internal_correlated"),
-                ("honeycomb_SI500", "internal_correlated"),
+            "SI1000": [
+                ("surface_SI1000", "internal_correlated"),
+                ("honeycomb_SI1000", "internal_correlated"),
             ],
             "EM3": [
                 None,
@@ -180,11 +180,11 @@ def plot_lambda_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes]:
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
         ],
-        "SI500": [
-            ("honeycomb_SI500", "internal"),
-            ("honeycomb_SI500", "internal_correlated"),
-            ("surface_SI500", "internal"),
-            ("surface_SI500", "internal_correlated"),
+        "SI1000": [
+            ("honeycomb_SI1000", "internal"),
+            ("honeycomb_SI1000", "internal_correlated"),
+            ("surface_SI1000", "internal"),
+            ("surface_SI1000", "internal_correlated"),
         ],
         "EM3": [
             ("honeycomb_EM3_v2", "internal"),
@@ -266,11 +266,11 @@ def plot_teraquop_combo(all_data: ProblemShotData) -> Tuple[plt.Figure, plt.Axes
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
         ],
-        "SI500": [
-            ("honeycomb_SI500", "internal"),
-            ("honeycomb_SI500", "internal_correlated"),
-            ("surface_SI500", "internal"),
-            ("surface_SI500", "internal_correlated"),
+        "SI1000": [
+            ("honeycomb_SI1000", "internal"),
+            ("honeycomb_SI1000", "internal_correlated"),
+            ("surface_SI1000", "internal"),
+            ("surface_SI1000", "internal_correlated"),
         ],
         "EM3": [
             ("honeycomb_EM3_v2", "internal"),

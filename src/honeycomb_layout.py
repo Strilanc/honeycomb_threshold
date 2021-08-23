@@ -92,7 +92,7 @@ class HoneycombLayout:
             "EM3": Entangling measurements circuit (w/ 3 step cycle).
             "EM3_v2": Entangling measurements circuit (w/ 3 step cycle) and measurement-depolarizing correlated model.
             "CP3": Controlled paulis circuit (w/ 3 step cycle).
-            "SI500": Superconducting inspired (w/ ~500 nanosecond cycle).
+            "SI1000": Superconducting inspired (w/ ~500 nanosecond cycle).
         obs: The observable to initialize and measure fault tolerantly. Valid values are:
             "H": Horizontal observable.
             "V": Vertical observable.
@@ -121,8 +121,8 @@ class HoneycombLayout:
             return NoiseModel.EM3_v1(self.noise)
         if self.style == "EM3_v2":
             return NoiseModel.EM3_v2(self.noise)
-        if self.style == "SI500":
-            return NoiseModel.SI500(self.noise)
+        if self.style == "SI1000":
+            return NoiseModel.SI1000(self.noise)
         raise NotImplementedError(self.style)
 
     def wrap(self, c: complex) -> complex:

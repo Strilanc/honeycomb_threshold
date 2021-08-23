@@ -51,15 +51,15 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
             ("honeycomb_SD6", "H", "internal_correlated"),
             ("honeycomb_SD6", "V", "internal_correlated"),
         ],
-        "SI500": [
-            ("surface_SI500", "X", "internal"),
-            ("surface_SI500", "Z", "internal"),
-            ("surface_SI500", "X", "internal_correlated"),
-            ("surface_SI500", "Z", "internal_correlated"),
-            ("honeycomb_SI500", "H", "internal"),
-            ("honeycomb_SI500", "V", "internal"),
-            ("honeycomb_SI500", "H", "internal_correlated"),
-            ("honeycomb_SI500", "V", "internal_correlated"),
+        "SI1000": [
+            ("surface_SI1000", "X", "internal"),
+            ("surface_SI1000", "Z", "internal"),
+            ("surface_SI1000", "X", "internal_correlated"),
+            ("surface_SI1000", "Z", "internal_correlated"),
+            ("honeycomb_SI1000", "H", "internal"),
+            ("honeycomb_SI1000", "V", "internal"),
+            ("honeycomb_SI1000", "H", "internal_correlated"),
+            ("honeycomb_SI1000", "V", "internal_correlated"),
         ],
         "EM3": [
             None,
@@ -88,9 +88,9 @@ def plot_thresholds(all_data: ProblemShotData, focused: bool) -> plt.Figure:
                 ("surface_SD6", "Z", "internal_correlated"),
                 ("honeycomb_SD6", "H", "internal_correlated"),
             ],
-            "SI500": [
-                ("surface_SI500", "Z", "internal_correlated"),
-                ("honeycomb_SI500", "H", "internal_correlated"),
+            "SI1000": [
+                ("surface_SI1000", "Z", "internal_correlated"),
+                ("honeycomb_SI1000", "H", "internal_correlated"),
             ],
             "EM3": [
                 None,

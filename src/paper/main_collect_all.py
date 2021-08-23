@@ -84,8 +84,8 @@ def surface_code_circuit(directory: str,
     path = f"{directory}/{noise_name.lower()}_{obs}/d{d}_p0.0.stim"
     with open(path) as f:
         circuit = stim.Circuit(f.read())
-    if noise_name == "SI500":
-        noise_model = NoiseModel.SI500(noise)
+    if noise_name == "SI1000":
+        noise_model = NoiseModel.SI1000(noise)
     elif noise_name == "SD6":
         noise_model = NoiseModel.SD6(noise)
     else:
@@ -134,7 +134,7 @@ def surface_code_problems(directory: Optional[str]) -> List[DecodingProblem]:
         for decoder in DECODERS
         for d in [3, 7, 11, 15, 19]
         for p in USED_NOISE_VALUES
-        for noise_name in ["SD6", "SI500"]
+        for noise_name in ["SD6", "SI1000"]
         for obs in "XZ"
     ]
 
@@ -179,7 +179,7 @@ def honeycomb_problems() -> List[DecodingProblem]:
             5,
         ]
         for style in [
-            "SI500",
+            "SI1000",
             "SD6",
             "EM3_v2",
         ]

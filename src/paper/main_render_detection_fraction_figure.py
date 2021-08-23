@@ -35,9 +35,9 @@ def main():
 def plot_detection_fraction(all_data: ProblemShotData) -> plt.Figure:
     styles = {
         "surface_SD6": "SD6\nSurface Code",
-        "surface_SI500": "SI500\nSurface Code",
+        "surface_SI1000": "SI1000\nSurface Code",
         "honeycomb_SD6": "SD6\nHoneycomb Code",
-        "honeycomb_SI500": "SI500\nHoneycomb Code",
+        "honeycomb_SI1000": "SI1000\nHoneycomb Code",
         "honeycomb_EM3_v2": "EM3\nHoneycomb Code",
         "honeycomb_EM3": "Tweaked EM3\nHoneycomb Code",
     }
