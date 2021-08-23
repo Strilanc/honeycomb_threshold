@@ -17,11 +17,10 @@ def main():
         noise=0.001,
         data_width=4,
         data_height=6,
-        sub_rounds=30,
+        sub_rounds=12 * 3,
         style="SD6",
-        obs="V",
+        obs="H",
     ))
-    # c = surface_code_circuit("surface_code_circuits", "SD6", 0.001, "X", 7)
     g = detector_error_model_to_nx_graph(c.detector_error_model(decompose_errors=True))
     nx.readwrite.gpickle.write_gpickle(g, path="test.graph")
 

@@ -14,7 +14,7 @@ def main():
     for path in sys.argv[1:]:
         p = pathlib.Path(path)
         if p.is_dir():
-            csvs.extend(p.glob("*.csv"))
+            csvs.extend(p.rglob("**/*.csv"))
         else:
             csvs.append(p)
 

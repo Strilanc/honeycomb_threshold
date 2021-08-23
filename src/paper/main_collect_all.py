@@ -19,22 +19,34 @@ def main():
     parser.add_argument('--out_file', type=str, required=False, help="Write to a file in addition to stdout.")
     parser.add_argument('--problem_id', type=int, required=False)
     parser.add_argument('--case_reduction', type=int, required=False)
+    parser.add_argument('--max_shots', type=int, required=False)
+    parser.add_argument('--max_errors', type=int, required=False)
+    parser.add_argument('--max_batch_size', type=int, required=False)
     args = vars(parser.parse_args())
     out_path = args.get('out_file', None)
     problem_id = args.get('problem_id', None)
+    max_shots = args.get('max_shots', None)
+    max_errors = args.get('max_errors', None)
     surface_dir = args.get('surface_code_problems_directory')
     case_reduction = args.get('case_reduction') or 1
+    max_batch_size = args.get('max_batch_size', None)
     collect_data(surface_dir=surface_dir,
                  problem_id=problem_id,
                  case_reduction=case_reduction,
-                 out_path=out_path)
+                 out_path=out_path,
+                 max_shots=max_shots,
+                 max_errors=max_errors,
+                 max_batch_size=max_batch_size)
 
 
 def collect_data(*,
                  surface_dir: Optional[str],
                  problem_id: Optional[int],
                  case_reduction: int,
-                 out_path: Optional[str]):
+                 out_path: Optional[str],
+                 max_shots: Optional[int] = None,
+                 max_errors: Optional[int] = None,
+                 max_batch_size: Optional[int] = None):
     if surface_dir is None:
         surface_dir = f"{pathlib.Path(__file__).parent}/surface_code_circuits"
     problems = honeycomb_problems() + surface_code_problems(surface_dir)
@@ -55,12 +67,12 @@ def collect_data(*,
     collect_simulated_experiment_data(
         problems,
         out_path=out_path,
-        discard_previous_data=True,
+        discard_previous_data=False,
         min_shots=25,
-        max_batch=2**15,
-        max_shots=10**8 // case_reduction,
+        max_batch=max_batch_size if max_batch_size is not None else 2**15,
+        max_shots=max_shots if max_shots is not None else (10**8 // case_reduction),
         max_sample_std_dev=1,
-        min_seen_logical_errors=10**3 // case_reduction,
+        min_seen_logical_errors=max_errors if max_errors is not None else (10**3 // case_reduction),
     )
 
 

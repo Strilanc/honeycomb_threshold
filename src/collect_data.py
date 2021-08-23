@@ -148,6 +148,8 @@ def collect_simulated_experiment_data(problems: List[DecodingProblem],
     for problem in problems:
         num_seen_errors = 0
         num_next_shots = min_shots
+        if max_batch is not None and max_batch < min_shots:
+            num_next_shots = max_batch
         total_shots = 0
         while True:
             t0 = time.monotonic()
@@ -229,10 +231,59 @@ def collect_detection_fraction_data(problems: List[DecodingProblem],
 
 
 @dataclasses.dataclass
+class RemainingWork:
+    shot_data: 'ShotData'
+    max_shots: int
+    max_errors: int
+    threshold_circuit_breaker: float
+
+    @property
+    def finished(self) -> bool:
+        if self.shot_data.num_shots >= self.max_shots:
+            return True
+        if self.shot_data.num_errors >= self.max_errors:
+            return True
+        if self.shot_data.logical_error_rate >= self.threshold_circuit_breaker and self.shot_data.num_shots >= 10:
+            return True
+        return False
+
+    @property
+    def remaining_shots(self) -> int:
+        if self.finished:
+            return 0
+        return self.max_shots - self.shot_data.num_shots
+
+    @property
+    def remaining_errors(self) -> int:
+        if self.finished:
+            return 0
+        return self.max_errors - self.shot_data.num_errors
+
+    @property
+    def remaining_time(self) -> float:
+        if self.finished:
+            return 0
+        times = [float('inf')]
+        if self.shot_data.num_shots:
+            times.append(self.remaining_shots * self.shot_data.total_processing_seconds / self.shot_data.num_shots)
+        if self.shot_data.num_errors:
+            times.append(self.remaining_errors * self.shot_data.total_processing_seconds / self.shot_data.num_errors)
+        return min(times)
+
+
+
+@dataclasses.dataclass
 class ShotData:
     num_shots: int = 0
     num_correct: int = 0
     total_processing_seconds: float = 0
+
+    @property
+    def num_errors(self) -> int:
+        return self.num_shots - self.num_correct
+
+    def remaining_work(self, max_shots: int, max_errors: int, threshold_circuit_breaker: float) -> RemainingWork:
+        return RemainingWork(shot_data=self, max_shots=max_shots, max_errors=max_errors, threshold_circuit_breaker=threshold_circuit_breaker)
 
     def likely_error_rate_bounds(self, *, desired_ratio_vs_max_likelihood: float) -> Tuple[float, float]:
         """Compute relative-likelihood bounds.

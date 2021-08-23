@@ -61,16 +61,16 @@ def main():
 def plot_lambda_line_fits_combo(all_data: ProblemShotData, focus: bool) -> Tuple[plt.Figure, plt.Axes]:
     styles = {
         "SD6": [
-            ("honeycomb_SD6", "internal"),
-            ("honeycomb_SD6", "internal_correlated"),
             ("surface_SD6", "internal"),
             ("surface_SD6", "internal_correlated"),
+            ("honeycomb_SD6", "internal"),
+            ("honeycomb_SD6", "internal_correlated"),
         ],
         "SI500": [
-            ("honeycomb_SI500", "internal"),
-            ("honeycomb_SI500", "internal_correlated"),
             ("surface_SI500", "internal"),
             ("surface_SI500", "internal_correlated"),
+            ("honeycomb_SI500", "internal"),
+            ("honeycomb_SI500", "internal_correlated"),
         ],
         "EM3": [
             None,
@@ -364,12 +364,12 @@ class LambdaGroup:
             p1 = d1.logical_error_rate if d1 is not None else None
             p2 = d2.logical_error_rate if d2 is not None else None
 
-            if p2 is None or p1 is None:
-                print(f"WARNING EXTRAPOLATING SECOND OBSERVABLE DATA POINT FOR {self.rep}")
             if p2 is None:
                 p2 = p1
+                print(f"WARNING EXTRAPOLATING V OBSERVABLE DATA POINT FOR {self.rep} distance {d}")
             if p1 is None:
                 p1 = p2
+                print(f"WARNING EXTRAPOLATING H OBSERVABLE DATA POINT FOR {self.rep} distance {d}")
 
             if p1 and p2:
                 cells = int(math.ceil(self.rep.rounds / self.rep.code_distance))
